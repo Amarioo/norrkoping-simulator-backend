@@ -1,4 +1,4 @@
-package com.swarm
+package com.norrkoping.simulator
 
 import kotlinx.serialization.Serializable
 import kotlin.math.sqrt

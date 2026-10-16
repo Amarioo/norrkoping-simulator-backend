@@ -1,4 +1,4 @@
-package com.swarm
+package com.norrkoping.simulator
 
 /**
  * Norrköping ground plan, matching the UI's OpenStreetMap snapshot (2026-10-16).

@@ -1,4 +1,4 @@
-package com.swarm
+package com.norrkoping.simulator
 
 import io.ktor.client.request.*
 import io.ktor.client.statement.*

@@ -1,4 +1,4 @@
-package com.swarm
+package com.norrkoping.simulator
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*

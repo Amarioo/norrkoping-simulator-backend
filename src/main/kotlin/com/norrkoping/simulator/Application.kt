@@ -1,4 +1,4 @@
-package com.swarm
+package com.norrkoping.simulator
 
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
@@ -13,8 +13,8 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.sse.*
 import io.ktor.sse.*
-import kotlinx.coroutines.*
-import kotlinx.serialization.encodeToString
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 
 fun main() {

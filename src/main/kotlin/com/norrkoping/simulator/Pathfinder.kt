@@ -1,4 +1,4 @@
-package com.swarm
+package com.norrkoping.simulator
 
 import java.util.PriorityQueue
 import kotlin.math.*

@@ -4,11 +4,11 @@ plugins {
     application
 }
 repositories { mavenCentral() }
-group = "com.swarm"
+group = "com.norrkoping.simulator"
 version = "0.1.0"
 kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21) } }
 java { sourceCompatibility = JavaVersion.VERSION_21; targetCompatibility = JavaVersion.VERSION_21 }
-application { mainClass.set("com.swarm.ApplicationKt") }
+application { mainClass.set("com.norrkoping.simulator.ApplicationKt") }
 dependencies {
     implementation(platform("io.ktor:ktor-bom:3.6.0"))
     implementation("io.ktor:ktor-server-core-jvm")

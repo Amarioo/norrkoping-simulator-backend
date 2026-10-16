@@ -1,24 +1,24 @@
 # Norrköping Simulator — Kotlin/Ktor
 
-A local city simulation for the Norrköping Simulator UI in `../drone-swarm-ui`. Cars use a directed OpenStreetMap road graph. A fictional regional aircraft travels between Norrköpings flygplats (ESSP/Kungsängen) and the former Bråvalla F13 airfield.
+A local city simulation for the Norrköping Simulator UI in `../norrkoping-simulator-ui`. Cars use a directed OpenStreetMap road graph. A fictional regional aircraft travels between Norrköpings flygplats (ESSP/Kungsängen) and the former Bråvalla F13 airfield.
 
 ## Start
 
 ```powershell
-cd C:\Users\amarg\dev\drone-swarm-backend
+cd C:\Users\amarg\dev\norrkoping-simulator-backend
 .\dev.ps1
 ```
 
 Requires JDK 21 or 25. `dev.ps1` discovers an installed JDK under `%USERPROFILE%\.jdks` when `JAVA_HOME` is unset. Gradle is included through its wrapper. The server binds to 127.0.0.1:8080. Start the UI with `npm run dev` from the companion repository and open http://127.0.0.1:5173.
 
-The Gradle project is named `norrkoping-simulator-backend`; the existing folder name is retained so editor/start configurations keep working. Restart Ktor after updating code or the bundled transport data.
+Restart Ktor after updating code or the bundled transport data.
 
 ## CQRS and streaming
 
 ```text
 POST /api/simulator/* → CommandGuard / validation
                      → CityCommand → CitySimulationService mutex
-                     → RoadTraffic + RegionalFlight write models
+                     → RoadTraffic + RailTraffic + RegionalFlight write models
                      → immutable CitySnapshot → StateFlow
 GET world / SSE city ← read projection
 ```
@@ -36,21 +36,29 @@ All POST requests require `Content-Type: application/json`.
 | GET `/health` | `{"status":"ok"}` |
 | GET `/api/simulator/world` | Current `CitySnapshot` |
 | GET `/api/simulator/stream` | SSE event `city`, full snapshot, about 10 Hz |
-| POST `/api/simulator/settings` | `{"compact":100,"estate":60,"trucks":20,"flights":true,"timeScale":3}` |
+| POST `/api/simulator/settings` | `{"compact":100,"estate":60,"trucks":20,"buses":12,"trams":8,"trains":2,"flights":true,"timeScale":3}` |
 | POST `/api/simulator/pause` | `{"paused":true}` |
 | POST `/api/simulator/reset` | `{}`; preserve selected settings, reset movement/time |
 
-Limits: compact/estate each 0–600, trucks 0–150, total at most 1 000, timeScale 1–20. Invalid input returns 400 without changing the projection. Disallowed Origin returns 403; non-JSON writes return 415. Successful commands return a message.
+Limits: compact/estate each 0–600, trucks 0–150, buses 0–80, trams 0–40, trains 0–12, road total at most 1 000, timeScale 1–20. Invalid input returns 400 without changing the projection. Disallowed Origin returns 403; non-JSON writes return 415. Successful commands return a message.
 
-Snapshot fields: `sequence`, `simulationTime`, `paused`, `settings`, `vehicles`, `aircraft`, `completedFlights`, `events`. Vehicles contain ID, kind, position, heading, speed, road and stopped state. Aircraft additionally contains pitch, bank, phase, origin, destination and gear state. Positions are `[x,y,z]`, Y up, one scene unit = 25 metres. Speeds are km/h; angles radians; time seconds.
+Snapshot fields: `sequence`, `simulationTime`, `paused`, `settings`, `vehicles`, `aircraft`, `completedFlights`, `events`. Vehicles contain ID, kind, position, heading, speed, road and stopped state. Rail vehicles also include articulated `sections` (position/heading per car), and public transport may expose a `stop` name during a dwell. Aircraft additionally contains pitch, bank, phase, origin, destination and gear state. Positions are `[x,y,z]`, Y up, one scene unit = 25 metres. Speeds are km/h; angles radians; time seconds.
 
 ## Road traffic
 
-The bundled OSM graph has 38 294 nodes and 73 315 directed edges. Actual shared node IDs determine connectivity, so geometrically crossing roads do not automatically connect. One-way roads and roundabouts are directed. Pedestrian paths, Drottninggatan, restricted/private roads and runways are excluded. Trucks use motorway/trunk/primary/secondary classes and their links, excluding mapped HGV prohibitions.
+The bundled OSM graph has 38 294 nodes and 73 332 directed edges. Actual shared node IDs determine connectivity, so geometrically crossing roads do not automatically connect. One-way roads and roundabouts are directed. Pedestrian paths, Drottninggatan, restricted/private roads and runways are excluded. Trucks use motorway/trunk/primary/secondary classes and their links, excluding mapped HGV prohibitions.
 
 Vehicles choose routes at graph junctions, accelerate and brake, maintain gaps on upcoming route edges, stop for red lights and reserve junctions. Right-hand lane offsets are applied. Signal programs repeat every 48 simulated seconds with directional green, amber and clearance intervals. Their locations are mapped; timings and priorities are illustrative.
 
 This is a visual traffic simulation, not a complete traffic engineering model. Turn-restriction relations, multi-lane merging, lane changes, pedestrian phases and full vehicle dynamics are not implemented. Road availability/speed defaults depend on map completeness. Existing simplified bridge elevations do not model terrain.
+
+## Public transport
+
+Buses share the road occupancy model and dwell at nearby mapped bus stops. They use generated routes, not scheduled bus services. Five-section yellow/green trams follow OSM line 2/3 relations and stop positions. Four-section trains follow connected main railway tracks west of Norrköping Central, using a simulated return circuit and a white/orange/red Östgötapendeln-inspired model in the UI. Initial counts are 12 buses, 8 trams and 2 trains; legacy settings requests without these fields select zero.
+
+RailTraffic maintains distance on each route, accelerates, brakes and dwells. Each articulated section samples the route independently. Different tram lines and rail/road crossings do not yet share full signal/interlocking control. Stop times and train circulation are illustrative, not live timetables.
+
+The map importer retains tunnel-tagged road underpasses, including Ståthögavägen. Shared signal orientation prevents disagreement between the visible lamps and simulation. Route lookahead cannot loop behind a vehicle; junction leases expire and directed dead ends are pruned before route selection.
 
 ## Regional flight
 
@@ -63,7 +71,7 @@ F13 service is fictional. Flight paths, speeds and phases are simplified geometr
 `src/main/resources/transport-network.json` is derived from © OpenStreetMap contributors under ODbL 1.0. See DATA-LICENSE.md. The UI importer creates both render geometry and this transport graph from one snapshot. To update both together, run from the UI repository:
 
 ```powershell
-npm run map:import -- C:\path\norrkoping-region.json ..\drone-swarm-backend\src\main\resources\transport-network.json
+npm run map:import -- C:\path\norrkoping-region.json ..\norrkoping-simulator-backend\src\main\resources\transport-network.json
 ```
 
 The source query, timestamp, geographic bounds and scale are recorded in `meta`. No external map request is made at application runtime.
