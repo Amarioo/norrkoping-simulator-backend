@@ -5,10 +5,10 @@ import kotlin.random.Random
 
 /** Mutable write aggregate. Only SimulationService may access this under its mutex. */
 class SwarmWorld(private val random: Random = Random(42)) {
-    private data class Drone(val id: String, var pos: Vec3, var target: Vec3, val home: Vec3, val weight: Double, var battery: Double = 100.0, var state: String = "DELIVERING", var mission: String = "DELIVERING", var recycle: Boolean = true, var idleTime: Double = 0.0, var route: MutableList<Vec3> = mutableListOf()) {
-        fun view() = DroneView(id, pos.array(), target.array(), battery, state, weight, route.map { it.array() })
+    private data class Drone(val id: String, var pos: Vec3, var target: Vec3, val home: Vec3, val weight: Double, var battery: Double = 100.0, var state: String = "DELIVERING", var mission: String = "DELIVERING", var recycle: Boolean = true, var idleTime: Double = 0.0, var place: String = "", var route: MutableList<Vec3> = mutableListOf()) {
+        fun view() = DroneView(id, pos.array(), target.array(), battery, state, weight, route.map { it.array() }, place)
     }
-    val hubs = listOf(HubView("HUB_NORTH", "North hub", listOf(-52.0, 0.0, -40.0)), HubView("HUB_SOUTH", "South hub", listOf(52.0, 0.0, 40.0)))
+    val hubs = CityMap.hubs
     private val drones = linkedMapOf<String, Drone>()
     private val zones = linkedMapOf<String, ZoneView>()
     private var nextDrone = 1
@@ -20,7 +20,11 @@ class SwarmWorld(private val random: Random = Random(42)) {
         d.route = Pathfinder.route(d.pos, d.target, zones.values).toMutableList()
         d.state = if (d.route.isEmpty()) "HOLDING" else d.mission
     }
-    private fun destination(altitude: Double): Vec3 = Vec3(random.nextDouble(-65.0, 65.0), altitude, random.nextDouble(-65.0, 65.0))
+    /** Draws a delivery address from the Norrköping city map; a named request always wins. */
+    private fun drawPlace(requested: String?): CityMap.Place =
+        CityMap.place(requested) ?: CityMap.places[random.nextInt(CityMap.places.size)]
+    private fun destination(altitude: Double, place: CityMap.Place): Vec3 =
+        Vec3(place.x + random.nextDouble(-1.2, 1.2), altitude, place.z + random.nextDouble(-1.2, 1.2))
     fun handle(command: Command): List<DomainEvent> {
         val events = mutableListOf<DomainEvent>()
         when (command) {
@@ -30,13 +34,16 @@ class SwarmWorld(private val random: Random = Random(42)) {
                 require(drones.size + r.count <= 100) { "Fleet limit is 100 drones. Reset to clear the fleet." }
                 require(r.weightKg.isFinite() && r.weightKg in 0.1..5.0) { "Payload must be between 0.1 and 5 kg." }
                 val hub = hubs.find { it.id == r.originHub } ?: throw IllegalArgumentException("Unknown origin hub.")
+                require(r.destination == null || CityMap.place(r.destination) != null) { "Unknown destination \"${r.destination}\". Choose one of the places on the city map." }
                 repeat(r.count) {
                     val altitude = 18.0 + (nextDrone % 3) * 4
                     val home = Vec3(hub.pos[0], altitude, hub.pos[2])
-                    val d = Drone("D-${nextDrone++.toString().padStart(3, '0')}", home, destination(altitude), home, r.weightKg)
+                    val place = drawPlace(r.destination)
+                    val d = Drone("D-${nextDrone++.toString().padStart(3, '0')}", home, destination(altitude, place), home, r.weightKg, place = place.name)
                     plan(d); drones[d.id] = d; events.add(DomainEvent.DroneChanged(d.view()))
                 }
-                events.add(DomainEvent.Logged("dispatch", "Dispatched ${r.count} drone(s) from ${hub.label}."))
+                val to = CityMap.place(r.destination)?.let { " to ${it.name}" } ?: ""
+                events.add(DomainEvent.Logged("dispatch", "Dispatched ${r.count} drone(s) from ${hub.label}$to."))
             }
             is Command.AddZone -> {
                 val r = command.request
@@ -89,8 +96,9 @@ class SwarmWorld(private val random: Random = Random(42)) {
                 d.idleTime += dt
                 d.battery = (d.battery + dt * 12).coerceAtMost(100.0)
                 if (d.recycle && d.idleTime >= 4 && d.battery >= 99) {
-                    d.idleTime = 0.0; d.target = destination(d.home.y); d.mission = "DELIVERING"; plan(d)
-                    events.add(DomainEvent.Logged("dispatch", "${d.id} recharged and dispatched again."))
+                    val place = drawPlace(null)
+                    d.idleTime = 0.0; d.place = place.name; d.target = destination(d.home.y, place); d.mission = "DELIVERING"; plan(d)
+                    events.add(DomainEvent.Logged("dispatch", "${d.id} recharged and dispatched again to ${place.name}."))
                 }
                 events.add(DomainEvent.DroneChanged(d.view()))
                 continue
@@ -116,7 +124,7 @@ class SwarmWorld(private val random: Random = Random(42)) {
                     if (d.route.isEmpty()) {
                         if (d.mission == "DELIVERING") {
                             events.add(DomainEvent.Delivered)
-                            events.add(DomainEvent.Logged("delivery", "${d.id} delivered its payload."))
+                            events.add(DomainEvent.Logged("delivery", "${d.id} delivered its payload at ${d.place}."))
                             d.target = d.home; d.mission = "RETURNING"; plan(d)
                         } else { d.state = "IDLE"; d.idleTime = 0.0; events.add(DomainEvent.Logged("arrival", "${d.id} landed at its hub.")) }
                     }

@@ -29,6 +29,9 @@ fun Application.module() {
         exception<IllegalArgumentException> { call, cause -> call.respond(HttpStatusCode.BadRequest, ApiError(cause.message ?: "Invalid command.")) }
         exception<BadRequestException> { call, _ -> call.respond(HttpStatusCode.BadRequest, ApiError("Malformed command body.")) }
     }
+    val city = CitySimulationService()
+    val cityJob = launch(Dispatchers.Default) { city.run() }
+    monitor.subscribe(ApplicationStopping) { cityJob.cancel() }
     val simulation = SimulationService()
     val job = launch(Dispatchers.Default) { simulation.run() }
     monitor.subscribe(ApplicationStopping) { job.cancel() }
@@ -36,6 +39,13 @@ fun Application.module() {
         get("/health") { call.respond(mapOf("status" to "ok")) }
         route("/api") {
             install(CommandGuard)
+            route("/simulator") {
+                get("/world") { call.respond(city.world.value) }
+                post("/settings") { city.execute(CityCommand.Configure(call.receive())); call.respond(CommandResult("Trafiken uppdaterad.")) }
+                post("/pause") { city.execute(CityCommand.Pause(call.receive<PauseRequest>().paused)); call.respond(CommandResult("Paus uppdaterad.")) }
+                post("/reset") { city.execute(CityCommand.Reset); call.respond(CommandResult("Simuleringen återställd.")) }
+                sse("/stream") { city.world.collect { send(ServerSentEvent(data=jsonCodec.encodeToString(it),event="city",id=it.sequence.toString(),retry=1500)) } }
+            }
             get("/world") { call.respond(simulation.world.value) }
             get("/telemetry") { call.respond(simulation.telemetry.value) }
             post("/commands/dispatch-drone") { simulation.execute(Command.Dispatch(call.receive())); call.respond(CommandResult("Drones dispatched.")) }

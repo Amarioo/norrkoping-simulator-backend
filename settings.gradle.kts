@@ -1,1 +1,1 @@
-rootProject.name = "drone-swarm-backend"
+rootProject.name = "norrkoping-simulator-backend"

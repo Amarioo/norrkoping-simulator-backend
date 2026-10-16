@@ -11,10 +11,17 @@ class ApplicationTest {
     @Test fun `commands update query read model and reject malformed inputs`() = testApplication {
         application { module() }
         assertEquals(HttpStatusCode.OK, client.get("/health").status)
-        val accepted = client.post("/api/commands/dispatch-drone") { contentType(ContentType.Application.Json); setBody("""{"count":3,"originHub":"HUB_SOUTH","weightKg":1.5}""") }
+        val accepted = client.post("/api/commands/dispatch-drone") { contentType(ContentType.Application.Json); setBody("""{"count":3,"originHub":"HUB_VRINNEVI","weightKg":1.5}""") }
         assertEquals(HttpStatusCode.OK, accepted.status)
         val world = Json.parseToJsonElement(client.get("/api/world").bodyAsText()).jsonObject
         assertEquals(11, world.getValue("drones").jsonArray.size)
+        assertEquals("HUB_HAMNEN", world.getValue("hubs").jsonArray[0].jsonObject.getValue("id").jsonPrimitive.content)
+        val addressed = client.post("/api/commands/dispatch-drone") { contentType(ContentType.Application.Json); setBody("""{"count":1,"destination":"Arbetets museum"}""") }
+        assertEquals(HttpStatusCode.OK, addressed.status)
+        val drone = Json.parseToJsonElement(client.get("/api/world").bodyAsText()).jsonObject.getValue("drones").jsonArray[11].jsonObject
+        assertEquals("Arbetets museum", drone.getValue("destination").jsonPrimitive.content)
+        val unknownDestination = client.post("/api/commands/dispatch-drone") { contentType(ContentType.Application.Json); setBody("""{"count":1,"destination":"Stockholm"}""") }
+        assertEquals(HttpStatusCode.BadRequest, unknownDestination.status)
         val invalid = client.post("/api/commands/spawn-no-fly-zone") { contentType(ContentType.Application.Json); setBody("""{"center":[0,15],"radius":12}""") }
         assertEquals(HttpStatusCode.BadRequest, invalid.status)
         assertTrue(Json.parseToJsonElement(invalid.bodyAsText()).jsonObject.containsKey("error"))

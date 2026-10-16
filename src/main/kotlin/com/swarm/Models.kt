@@ -14,14 +14,14 @@ data class Vec3(val x: Double, val y: Double, val z: Double) {
     fun array() = listOf(x, y, z)
     companion object { val ZERO = Vec3(0.0, 0.0, 0.0) }
 }
-@Serializable data class DispatchRequest(val count: Int = 1, val originHub: String = "HUB_NORTH", val weightKg: Double = 2.0)
+@Serializable data class DispatchRequest(val count: Int = 1, val originHub: String = "HUB_HAMNEN", val weightKg: Double = 2.0, val destination: String? = null)
 @Serializable data class ZoneRequest(val center: List<Double>, val radius: Double = 12.0)
 @Serializable data class PauseRequest(val paused: Boolean)
 @Serializable data class WindRequest(val x: Double = 0.0, val z: Double = 0.0)
 @Serializable data class IdRequest(val id: String)
 @Serializable data class CommandResult(val message: String)
 @Serializable data class ApiError(val error: String)
-@Serializable data class DroneView(val id: String, val pos: List<Double>, val target: List<Double>, val battery: Double, val state: String, val weightKg: Double, val route: List<List<Double>>)
+@Serializable data class DroneView(val id: String, val pos: List<Double>, val target: List<Double>, val battery: Double, val state: String, val weightKg: Double, val route: List<List<Double>>, val destination: String = "")
 @Serializable data class ZoneView(val id: String, val center: List<Double>, val radius: Double)
 @Serializable data class HubView(val id: String, val label: String, val pos: List<Double>)
 @Serializable data class Activity(val id: Long, val time: Double, val kind: String, val message: String)

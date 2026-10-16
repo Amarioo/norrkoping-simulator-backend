@@ -18,6 +18,19 @@ class SimulationTest {
     @Test fun `blocked destination has no route`() {
         assertTrue(Pathfinder.route(Vec3(-40.0, 18.0, 0.0), Vec3(0.0, 18.0, 0.0), listOf(ZoneView("z", listOf(0.0, 15.0, 0.0), 12.0))).isEmpty())
     }
+    @Test fun `fleet serves the Norrköping city map`() = runBlocking {
+        val service = SimulationService()
+        assertEquals(listOf("HUB_HAMNEN", "HUB_VRINNEVI"), service.world.value.hubs.map { it.id })
+        assertEquals(listOf("Norrköpings hamn", "Vrinnevisjukhuset"), service.world.value.hubs.map { it.label })
+        service.execute(Command.Dispatch(DispatchRequest(count = 1, destination = "arbetets museum")))
+        val drone = service.world.value.drones.last()
+        assertEquals("Arbetets museum", drone.destination)
+        val museum = CityMap.places.first { it.name == "Arbetets museum" }
+        assertEquals(museum.x, drone.target[0], 1.3)
+        assertEquals(museum.z, drone.target[2], 1.3)
+        assertTrue(service.world.value.drones.take(8).all { it.destination.isNotBlank() })
+        assertFailsWith<IllegalArgumentException> { service.execute(Command.Dispatch(DispatchRequest(destination = "Stockholm"))) }
+    }
     @Test fun `validation failures leave projection unchanged`() = runBlocking {
         val service = SimulationService()
         val before = service.world.value
