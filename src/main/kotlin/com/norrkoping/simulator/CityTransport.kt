@@ -9,7 +9,7 @@ import kotlin.math.*
 @Serializable data class Airport(val id: String, val name: String, val runway: String, val start: List<Double>, val end: List<Double>, val width: Double, val historic: Boolean)
 @Serializable data class Airway(val id: Long, val kind: String, val points: List<List<Double>>)
 @Serializable data class TransitStop(val distance: Double, val name: String)
-@Serializable data class TransitRoute(val id: String, val kind: String, val name: String, val loop: Boolean, val points: List<List<Double>>, val stops: List<TransitStop>)
+@Serializable data class TransitRoute(val id: String, val kind: String, val name: String, val loop: Boolean, val points: List<List<Double>>, val stops: List<TransitStop>, val destinations: List<TransitStop> = emptyList())
 @Serializable data class TransportNetwork(val nodes: List<RoadNode>, val edges: List<RoadEdge>, val airports: List<Airport>, val airways: List<Airway>, val transitRoutes: List<TransitRoute> = emptyList()) {
     val outgoing by lazy { edges.indices.groupBy { edges[it].from } }
     val junctions by lazy { edges.groupBy { it.from }.filterValues { es -> es.map { it.to }.distinct().size > 2 }.keys }
@@ -20,7 +20,7 @@ import kotlin.math.*
 }
 @Serializable data class TrafficSettings(val compact: Int = 100, val estate: Int = 60, val trucks: Int = 20, val flights: Boolean = true, val timeScale: Double = 3.0, val buses: Int = 0, val trams: Int = 0, val trains: Int = 0)
 @Serializable data class VehicleSection(val pos: List<Double>, val heading: Double)
-@Serializable data class VehicleView(val id: Int, val kind: String, val pos: List<Double>, val heading: Double, val speed: Double, val road: String, val stopped: Boolean, val sections: List<VehicleSection> = emptyList(), val stop: String? = null)
+@Serializable data class VehicleView(val id: Int, val kind: String, val pos: List<Double>, val heading: Double, val speed: Double, val road: String, val stopped: Boolean, val sections: List<VehicleSection> = emptyList(), val stop: String? = null, val destination: String? = null)
 @Serializable data class AircraftView(val id: String = "NK-01", val pos: List<Double>, val heading: Double, val pitch: Double, val bank: Double, val phase: String, val origin: String, val destination: String, val speed: Double, val gear: Boolean)
 @Serializable data class CitySnapshot(val sequence: Long, val simulationTime: Double, val paused: Boolean, val settings: TrafficSettings, val vehicles: List<VehicleView>, val aircraft: List<AircraftView>, val completedFlights: Int, val events: List<Activity>)
 sealed interface CityCommand {

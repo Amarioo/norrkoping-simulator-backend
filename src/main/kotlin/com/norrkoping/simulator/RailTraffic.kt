@@ -66,6 +66,6 @@ class RailTraffic(private val routes: List<TransitRoute> = TransportNetwork.bund
         val train=unit.track.route.kind=="train"
         val sections=List(if(train)4 else 5) { unit.track.pose(unit.distance-it*(if(train).8 else .256)) }
         val front=sections.first()
-        VehicleView(unit.id,unit.track.route.kind,front.pos,front.heading,unit.speed*90,unit.track.route.name,unit.speed<.015,sections,if(unit.dwell>0)unit.lastStop else null)
+        VehicleView(unit.id,unit.track.route.kind,front.pos,front.heading,unit.speed*90,unit.track.route.name,unit.speed<.015,sections,if(unit.dwell>0)unit.lastStop else null, unit.track.route.destinations.lastOrNull { it.distance <= unit.distance }?.name)
     }
 }
