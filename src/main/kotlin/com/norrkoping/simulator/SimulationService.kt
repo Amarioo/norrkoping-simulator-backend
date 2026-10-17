@@ -34,7 +34,7 @@ class Projections(private val hubs: List<HubView>) {
 
 class SimulationService {
     private val mutex = Mutex()
-    private val aggregate = SwarmWorld()
+    private val aggregate = NorrköpingWorld()
     private val projection = Projections(aggregate.hubs)
     private var sequence = 0L
     private val worldState = MutableStateFlow(WorldSnapshot())

@@ -4,8 +4,8 @@ import kotlin.math.*
 import java.util.PriorityQueue
 
 /** Fictional shuttle using mapped runway headings and taxiway polylines. */
-class RegionalFlight(private val network: TransportNetwork = TransportNetwork.bundled) {
-    private fun point(p: List<Double>,y: Double=.1)=Vec3(p[0],y,p[1])
+class RegionalFlight(private val network: TransportNetwork = TransportNetwork.bundled, private val terrain: TerrainService = TerrainService.bundled) {
+    private fun point(p: List<Double>,y: Double=.1)=Vec3(p[0],terrain.relativeHeight(p[0],p[1],y),p[1])
     private data class Airfield(val airport: Airport,val start: Vec3,val end: Vec3,val direction: Vec3,val gate: Vec3,val taxiOut: List<Vec3>,val taxiIn: List<Vec3>,val exit: Vec3)
     private fun airfield(a: Airport): Airfield {
         val start=point(a.start);val end=point(a.end);val direction=(end-start).normalized();val runwayLength=(end-start).length()
@@ -48,8 +48,8 @@ class RegionalFlight(private val network: TransportNetwork = TransportNetwork.bu
         return when(phase){
             "PARKED"->from.gate
             "TAXI_OUT"->along(from.taxiOut,t)
-            "TAKEOFF"->{val p=from.start+(launch-from.start)*(t*t);Vec3(p.x,.1+max(0.0,(t-.78)/.22).pow(2)*1.3,p.z)}
-            "CLIMB"->{val p=Vec3(launch.x,1.4,launch.z)+(a-Vec3(launch.x,1.4,launch.z))*t;p}
+            "TAKEOFF"->{val p=from.start+(launch-from.start)*(t*t);Vec3(p.x,p.y+max(0.0,(t-.78)/.22).pow(2)*1.3,p.z)}
+            "CLIMB"->{val p=Vec3(launch.x,launch.y+1.3,launch.z)+(a-Vec3(launch.x,launch.y+1.3,launch.z))*t;p}
             "CRUISE"->bezier(a,a+from.direction*65.0,b-to.direction*65.0,b,t)
             "APPROACH"->b+(touch-b)*t
             "LANDING"->touch+(to.exit-touch)*(1-(1-t).pow(2))

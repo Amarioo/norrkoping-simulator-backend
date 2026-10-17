@@ -4,7 +4,7 @@ import kotlin.math.*
 import kotlin.random.Random
 
 /** Mutable write aggregate. Only SimulationService may access this under its mutex. */
-class SwarmWorld(private val random: Random = Random(42)) {
+class NorrköpingWorld(private val random: Random = Random(42)) {
     private data class Drone(val id: String, var pos: Vec3, var target: Vec3, val home: Vec3, val weight: Double, var battery: Double = 100.0, var state: String = "DELIVERING", var mission: String = "DELIVERING", var recycle: Boolean = true, var idleTime: Double = 0.0, var place: String = "", var route: MutableList<Vec3> = mutableListOf()) {
         fun view() = DroneView(id, pos.array(), target.array(), battery, state, weight, route.map { it.array() }, place)
     }

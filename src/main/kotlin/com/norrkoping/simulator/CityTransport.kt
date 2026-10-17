@@ -22,7 +22,7 @@ import kotlin.math.*
 @Serializable data class VehicleSection(val pos: List<Double>, val heading: Double)
 @Serializable data class VehicleView(val id: Int, val kind: String, val pos: List<Double>, val heading: Double, val speed: Double, val road: String, val stopped: Boolean, val sections: List<VehicleSection> = emptyList(), val stop: String? = null, val destination: String? = null)
 @Serializable data class AircraftView(val id: String = "NK-01", val pos: List<Double>, val heading: Double, val pitch: Double, val bank: Double, val phase: String, val origin: String, val destination: String, val speed: Double, val gear: Boolean)
-@Serializable data class CitySnapshot(val sequence: Long, val simulationTime: Double, val paused: Boolean, val settings: TrafficSettings, val vehicles: List<VehicleView>, val aircraft: List<AircraftView>, val completedFlights: Int, val events: List<Activity>)
+@Serializable data class CitySnapshot(val sequence: Long, val simulationTime: Double, val paused: Boolean, val settings: TrafficSettings, val vehicles: List<VehicleView>, val aircraft: List<AircraftView>, val completedFlights: Int, val events: List<Activity>, val terrainRevision: String = TerrainService.bundled.data.revision)
 sealed interface CityCommand {
     data class Configure(val settings: TrafficSettings): CityCommand
     data class Pause(val value: Boolean): CityCommand
@@ -30,7 +30,7 @@ sealed interface CityCommand {
 }
 
 /** Cars and buses share one occupancy model; rails have their own continuous paths. */
-class RoadTraffic(private val network: TransportNetwork = TransportNetwork.bundled) {
+class RoadTraffic(private val network: TransportNetwork = TransportNetwork.bundled, private val terrain: TerrainService = TerrainService.bundled) {
     private val random = kotlin.random.Random(1309)
     private data class Car(val id: Int, val kind: String, var edge: Int, var progress: Double, var speed: Double = 0.0, var previous: Int = edge, val path: ArrayDeque<Int> = ArrayDeque(), var dwellUntil: Double = 0.0, var lastStop: Int = -1)
     private data class Occupant(val id: Int, val progress: Double, val length: Double)
@@ -156,6 +156,6 @@ class RoadTraffic(private val network: TransportNetwork = TransportNetwork.bundl
         var dz=d.second*(1-start-end)+previous.second*start+next.second*end
         val norm=max(hypot(dx,dz),.001);dx/=norm;dz/=norm
         val offset=if(e.oneway && e.width<.24) 0.0 else min(e.width*.25,.075)
-        VehicleView(car.id,car.kind,listOf(a.x+(b.x-a.x)*t-dz*offset,a.y+(b.y-a.y)*t+.008,a.z+(b.z-a.z)*t+dx*offset),atan2(dx,dz),car.speed*90,e.name,car.speed<.015,stop=if(car.kind=="bus"&&car.speed<.015)network.nodes.getOrNull(car.lastStop)?.busStop else null)
+        VehicleView(car.id,car.kind,listOf(a.x+(b.x-a.x)*t-dz*offset,terrain.profileHeight(listOf(a.x,a.y,a.z),listOf(b.x,b.y,b.z),t)+.008,a.z+(b.z-a.z)*t+dx*offset),atan2(dx,dz),car.speed*90,e.name,car.speed<.015,stop=if(car.kind=="bus"&&car.speed<.015)network.nodes.getOrNull(car.lastStop)?.busStop else null)
     }
 }

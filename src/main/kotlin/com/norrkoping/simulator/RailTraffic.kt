@@ -3,8 +3,8 @@ package com.norrkoping.simulator
 import kotlin.math.*
 
 /** Rail vehicles follow continuous OSM polylines; each articulated section samples its own pose. */
-class RailTraffic(private val routes: List<TransitRoute> = TransportNetwork.bundled.transitRoutes) {
-    private class Track(val route: TransitRoute) {
+class RailTraffic(private val routes: List<TransitRoute> = TransportNetwork.bundled.transitRoutes, private val terrain: TerrainService = TerrainService.bundled) {
+    private inner class Track(val route: TransitRoute) {
         val cumulative=DoubleArray(route.points.size)
         init { for(i in 1 until cumulative.size) cumulative[i]=cumulative[i-1]+hypot(route.points[i][0]-route.points[i-1][0],route.points[i][2]-route.points[i-1][2]) }
         val length get()=cumulative.last()
@@ -12,7 +12,7 @@ class RailTraffic(private val routes: List<TransitRoute> = TransportNetwork.bund
             val d=((distance%length)+length)%length
             var i=cumulative.binarySearch(d);if(i<0)i=(-i-2).coerceAtLeast(0);i=i.coerceAtMost(cumulative.size-2)
             val t=((d-cumulative[i])/(cumulative[i+1]-cumulative[i]).coerceAtLeast(.00001)).coerceIn(0.0,1.0)
-            return List(3) { axis -> route.points[i][axis]+(route.points[i+1][axis]-route.points[i][axis])*t }
+            return List(3) { axis -> if (axis == 1) terrain.profileHeight(route.points[i],route.points[i+1],t) else route.points[i][axis]+(route.points[i+1][axis]-route.points[i][axis])*t }
         }
         fun pose(distance: Double): VehicleSection {
             val a=position(distance-.06);val b=position(distance+.06)

@@ -92,3 +92,7 @@ The source query, timestamp, geographic bounds and scale are recorded in `meta`.
 Tests cover traffic counts/restrictions, red-light stopping and green release, continuous flight through all phases and both airports, pause, invalid commands without mutation, HTTP validation and origin checks. Legacy drone tests remain. Browser/SSE end-to-end tests are in the UI repo.
 
 Local single-user application without authentication or persistence. For an isolated verification instance use `PORT=8081`, `ALLOWED_ORIGIN=http://127.0.0.1:5174`, and point the test UI's `API_TARGET` to port 8081.
+
+## Shared elevation contract
+
+TerrainService reads the same terrain.json as the UI. Road and rail projections use its common height profile; snapshots identify the terrain revision. The bundled dataset is currently empty (unavailable), so no surveyed topography is claimed. See ../norrkoping-simulator-ui/ELEVATION.md for data selection, import contracts, and remaining GIS/special-geometry migration work.
