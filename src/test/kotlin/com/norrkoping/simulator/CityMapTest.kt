@@ -11,8 +11,9 @@ class CityMapTest {
         assertEquals(stadium, CityMap.place("Nya Parken"))
         assertTrue(stadium.x < -30 && stadium.z > 20)
         val ljura = requireNotNull(CityMap.place("Ljuraparken"))
-        assertEquals(34.880, ljura.x, 0.001)
-        assertEquals(40.294, ljura.z, 0.001)
+        // SWEREF 99 TM scene frame (legacy 34.880, 40.294).
+        assertEquals(35.698, ljura.x, 0.001)
+        assertEquals(39.752, ljura.z, 0.001)
         assertTrue(CityMap.places.all { it.x in -79.0..79.0 && it.z in -79.0..79.0 })
     }
 }

@@ -4,9 +4,9 @@ import kotlin.test.*
 import org.junit.jupiter.api.Test
 
 class TerrainServiceTest {
-    private val reference = GeoReference(58.58981,16.18747,58010.0,111133.0,25.0,"RH2000",0.0)
+    private val reference = GeoReference("EPSG:3006",569030.0,6494989.0,0.9996584126,-1.0134914515,25.0,"RH2000",0.0)
     private val tile = TerrainTile("test-only","synthetic fixture","https://example.invalid","test","2026-01-01","DTM",1.0,.1,"RH2000","test fixture",0.0,0.0,1.0,2,2,listOf(10.0,20.0,30.0,40.0))
-    private fun service(vararg tiles: TerrainTile) = TerrainService(TerrainDataset(1,"test",reference,tiles.toList()))
+    private fun service(vararg tiles: TerrainTile) = TerrainService(TerrainDataset(TerrainService.DATASET_VERSION,"test",reference,tiles.toList()))
     @Test fun interpolationAndInfrastructureUseOneScale() {
         val s = service(tile)
         assertEquals(25.0,s.sample(.5,.5)?.metresRH2000)

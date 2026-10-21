@@ -19,8 +19,9 @@ import kotlin.math.*
     }
 }
 @Serializable data class TrafficSettings(val compact: Int = 100, val estate: Int = 60, val trucks: Int = 20, val flights: Boolean = true, val timeScale: Double = 3.0, val buses: Int = 0, val trams: Int = 0, val trains: Int = 0)
-@Serializable data class VehicleSection(val pos: List<Double>, val heading: Double)
-@Serializable data class VehicleView(val id: Int, val kind: String, val pos: List<Double>, val heading: Double, val speed: Double, val road: String, val stopped: Boolean, val sections: List<VehicleSection> = emptyList(), val stop: String? = null, val destination: String? = null)
+/** A rail vehicle section: wheel-contact centre on the bogie chord, heading and pitch (radians, nose up > 0). */
+@Serializable data class VehicleSection(val pos: List<Double>, val heading: Double, val pitch: Double = 0.0)
+@Serializable data class VehicleView(val id: Int, val kind: String, val pos: List<Double>, val heading: Double, val speed: Double, val road: String, val stopped: Boolean, val sections: List<VehicleSection> = emptyList(), val stop: String? = null, val destination: String? = null, val pitch: Double = 0.0)
 @Serializable data class AircraftView(val id: String = "NK-01", val pos: List<Double>, val heading: Double, val pitch: Double, val bank: Double, val phase: String, val origin: String, val destination: String, val speed: Double, val gear: Boolean)
 @Serializable data class CitySnapshot(val sequence: Long, val simulationTime: Double, val paused: Boolean, val settings: TrafficSettings, val vehicles: List<VehicleView>, val aircraft: List<AircraftView>, val completedFlights: Int, val events: List<Activity>, val terrainRevision: String = TerrainService.bundled.data.revision)
 sealed interface CityCommand {

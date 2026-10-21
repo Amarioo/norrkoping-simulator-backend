@@ -5,7 +5,9 @@ import java.util.PriorityQueue
 
 /** Fictional shuttle using mapped runway headings and taxiway polylines. */
 class RegionalFlight(private val network: TransportNetwork = TransportNetwork.bundled, private val terrain: TerrainService = TerrainService.bundled) {
-    private fun point(p: List<Double>,y: Double=.1)=Vec3(p[0],terrain.relativeHeight(p[0],p[1],y),p[1])
+    /** Ground positions: 0.01 above the runway pavement, which was the legacy level 0.09 (mapLandmarks.ts). */
+    private fun point(p: List<Double>,y: Double=.1)=Vec3(p[0],terrain.placeLegacy(p[0],p[1],y,RUNWAY_SURFACE),p[1])
+    private companion object { const val RUNWAY_SURFACE = .09 }
     private data class Airfield(val airport: Airport,val start: Vec3,val end: Vec3,val direction: Vec3,val gate: Vec3,val taxiOut: List<Vec3>,val taxiIn: List<Vec3>,val exit: Vec3)
     private fun airfield(a: Airport): Airfield {
         val start=point(a.start);val end=point(a.end);val direction=(end-start).normalized();val runwayLength=(end-start).length()
