@@ -40,20 +40,12 @@ class RoadTraffic(private val network: TransportNetwork = TransportNetwork.bundl
     private var nextId = 1
     private val reservations = mutableMapOf<Int, Reservation>()
     private fun length(car: Car) = when(car.kind) { "truck" -> .49; "bus" -> .48; "estate" -> .19; else -> .16 }
-    // Eliminate directed traps, including clipped motorway ends, before choosing a route.
+    // Eliminate routes that force a U-turn at a vehicle-policy boundary, and directed traps.
     private val allowed = listOf("compact", "estate", "truck", "bus").associateWith { kind ->
         val candidates = network.edges.indices.filter { kind != "truck" || network.edges[it].truck }.filter { kind != "bus" || network.edges[it].bus }
-        val counts = IntArray(network.nodes.size)
-        val incoming = candidates.groupBy { network.edges[it].to }
-        candidates.forEach { counts[network.edges[it].from]++ }
-        val removed = mutableSetOf<Int>()
-        val queue = ArrayDeque(network.nodes.indices.filter { counts[it] == 0 })
-        while(queue.isNotEmpty()) for(edge in incoming[queue.removeFirst()].orEmpty()) {
-            if(!removed.add(edge)) continue
-            val from = network.edges[edge].from
-            if(--counts[from] == 0) queue.add(from)
-        }
-        candidates.filter { it !in removed }.ifEmpty { candidates }.toSet()
+        // Tiny standalone/test networks can have no through route at all; retain their finite-route
+        // behavior. The bundled city has thousands of through edges for every supported kind.
+        throughRoadEdges(network, candidates).ifEmpty { candidates.toSet() }
     }
     private val spawnEdges = allowed.mapValues { (_, set) -> set.filter { network.edges[it].length > .7 && network.outgoing[network.edges[it].to]?.isNotEmpty() == true } }
     fun configure(settings: TrafficSettings) {
