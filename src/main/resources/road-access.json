@@ -1,0 +1,2229 @@
+{
+ "meta": {
+  "purpose": "Bus access corrections to the class heuristic in the bundled transport graph (Step 6.1b). Way IDs refer to that graph snapshot.",
+  "graphSnapshot": "2026-10-16T13:35:36Z",
+  "osmExtract": {
+   "osmBase": "2026-10-24T08:51:51Z",
+   "retrievedAt": "2026-10-24T08:53:45.832Z",
+   "url": "https://overpass-api.de/api/interpreter"
+  },
+  "turningExtract": {
+   "osmBase": "2026-10-24T09:02:06Z",
+   "retrievedAt": "2026-10-24T09:03:57.624Z",
+   "url": "https://overpass-api.de/api/interpreter"
+  },
+  "license": "Derived from © OpenStreetMap contributors, ODbL-1.0",
+  "rules": {
+   "osm-tag": "bus/psv = yes|designated|permissive on a way the importer closes to buses",
+   "osm-tag-deny": "bus = no|private, or psv = no without bus = yes, on a way the importer opens to buses",
+   "verified-service": "member of an OSM route=bus relation for a service verified against current operator data; tags do not prohibit buses",
+   "turnarounds": "graph nodes mapped highway=turning_circle|turning_loop; reversing there is a lawful turning movement"
+  },
+  "verifiedServices": [
+   {
+    "service": "21",
+    "operator": "Östgötatrafiken",
+    "relations": [
+     14025630,
+     14025631
+    ],
+    "checked": "2026-10-24",
+    "evidence": [
+     "https://www.transit.land/routes/r-u67t24-21 (current feed; stops Norrköping Centralstation, Norr Tull, Bråddgatan, Skvallertorget, Väster Tull, Söder Tull)",
+     "https://www.ostgotatrafiken.se/Tidtabeller/ (line index lists 21 via Resecentrum–Skvallertorget–Väster Tull–Söder Tull, checked 2026-10-23 in Step 6.2)"
+    ],
+    "note": "OSM relation stop sequence (2023-10-01) matches the current feed stop names and order."
+   }
+  ],
+  "generator": "norrkoping-simulator-ui/scripts/step61b/build-road-access.mjs"
+ },
+ "records": [
+  {
+   "way": 26154806,
+   "name": "Kungsgatan",
+   "class": "living_street",
+   "edges": 4,
+   "bus": true,
+   "basis": "verified-service",
+   "services": [
+    "21"
+   ],
+   "relations": [
+    {
+     "id": 14025630,
+     "ref": "21",
+     "version": 4,
+     "timestamp": "2023-10-01T14:29:24Z"
+    },
+    {
+     "id": 14025631,
+     "ref": "21",
+     "version": 3,
+     "timestamp": "2023-10-01T14:29:24Z"
+    }
+   ],
+   "osm": {
+    "version": 21,
+    "timestamp": "2025-08-21T10:39:39Z",
+    "tags": {
+     "highway": "living_street",
+     "name": "Kungsgatan",
+     "maxspeed": "walk"
+    }
+   }
+  },
+  {
+   "way": 391478867,
+   "name": "",
+   "class": "service",
+   "edges": 2,
+   "bus": true,
+   "basis": "osm-tag",
+   "osm": {
+    "version": 3,
+    "timestamp": "2025-11-10T12:23:22Z",
+    "tags": {
+     "highway": "service",
+     "psv": "yes"
+    }
+   }
+  },
+  {
+   "way": 444474485,
+   "name": "Kungsgatan",
+   "class": "living_street",
+   "edges": 2,
+   "bus": true,
+   "basis": "verified-service",
+   "services": [
+    "21"
+   ],
+   "relations": [
+    {
+     "id": 14025630,
+     "ref": "21",
+     "version": 4,
+     "timestamp": "2023-10-01T14:29:24Z"
+    },
+    {
+     "id": 14025631,
+     "ref": "21",
+     "version": 3,
+     "timestamp": "2023-10-01T14:29:24Z"
+    }
+   ],
+   "osm": {
+    "version": 6,
+    "timestamp": "2025-08-21T10:39:35Z",
+    "tags": {
+     "highway": "living_street",
+     "name": "Kungsgatan",
+     "maxspeed": "walk"
+    }
+   }
+  },
+  {
+   "way": 1050773509,
+   "name": "Kungsgatan",
+   "class": "living_street",
+   "edges": 4,
+   "bus": true,
+   "basis": "verified-service",
+   "services": [
+    "21"
+   ],
+   "relations": [
+    {
+     "id": 14025630,
+     "ref": "21",
+     "version": 4,
+     "timestamp": "2023-10-01T14:29:24Z"
+    },
+    {
+     "id": 14025631,
+     "ref": "21",
+     "version": 3,
+     "timestamp": "2023-10-01T14:29:24Z"
+    }
+   ],
+   "osm": {
+    "version": 3,
+    "timestamp": "2025-08-21T10:39:32Z",
+    "tags": {
+     "highway": "living_street",
+     "name": "Kungsgatan",
+     "maxspeed": "walk"
+    }
+   }
+  },
+  {
+   "way": 1212234765,
+   "name": "Kungsgatan",
+   "class": "living_street",
+   "edges": 8,
+   "bus": true,
+   "basis": "verified-service",
+   "services": [
+    "21"
+   ],
+   "relations": [
+    {
+     "id": 14025630,
+     "ref": "21",
+     "version": 4,
+     "timestamp": "2023-10-01T14:29:24Z"
+    },
+    {
+     "id": 14025631,
+     "ref": "21",
+     "version": 3,
+     "timestamp": "2023-10-01T14:29:24Z"
+    }
+   ],
+   "osm": {
+    "version": 4,
+    "timestamp": "2025-01-26T12:04:02Z",
+    "tags": {
+     "highway": "living_street",
+     "name": "Kungsgatan",
+     "maxspeed": "walk"
+    }
+   }
+  },
+  {
+   "way": 1313592331,
+   "name": "Östra Promenaden",
+   "class": "service",
+   "edges": 10,
+   "bus": true,
+   "basis": "osm-tag",
+   "osm": {
+    "version": 2,
+    "timestamp": "2024-09-20T13:52:28Z",
+    "tags": {
+     "highway": "service",
+     "name": "Östra Promenaden",
+     "bus": "designated"
+    }
+   }
+  }
+ ],
+ "turnarounds": [
+  {
+   "node": 171142,
+   "highway": "turning_circle",
+   "version": 3,
+   "timestamp": "2015-05-22T11:22:47Z"
+  },
+  {
+   "node": 437142,
+   "highway": "turning_circle",
+   "version": 3,
+   "timestamp": "2017-03-07T20:14:48Z"
+  },
+  {
+   "node": 7438348,
+   "highway": "turning_circle",
+   "version": 6,
+   "timestamp": "2023-08-26T14:44:30Z"
+  },
+  {
+   "node": 8085941,
+   "highway": "turning_circle",
+   "version": 5,
+   "timestamp": "2024-11-24T08:22:53Z"
+  },
+  {
+   "node": 8085980,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2014-04-01T09:47:47Z"
+  },
+  {
+   "node": 12063320,
+   "highway": "turning_circle",
+   "version": 3,
+   "timestamp": "2024-04-18T19:58:54Z"
+  },
+  {
+   "node": 251890102,
+   "highway": "turning_circle",
+   "version": 3,
+   "timestamp": "2024-11-23T07:08:35Z"
+  },
+  {
+   "node": 251899783,
+   "highway": "turning_circle",
+   "version": 3,
+   "timestamp": "2024-06-01T21:24:51Z"
+  },
+  {
+   "node": 251899786,
+   "highway": "turning_circle",
+   "version": 4,
+   "timestamp": "2024-06-01T21:24:51Z"
+  },
+  {
+   "node": 264903809,
+   "highway": "turning_circle",
+   "version": 3,
+   "timestamp": "2017-10-07T18:37:51Z"
+  },
+  {
+   "node": 264904186,
+   "highway": "turning_circle",
+   "version": 5,
+   "timestamp": "2021-10-24T17:57:27Z"
+  },
+  {
+   "node": 264906457,
+   "highway": "turning_circle",
+   "version": 3,
+   "timestamp": "2017-08-03T17:13:03Z"
+  },
+  {
+   "node": 264949764,
+   "highway": "turning_circle",
+   "version": 3,
+   "timestamp": "2021-10-24T17:57:27Z"
+  },
+  {
+   "node": 266514720,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2010-12-24T01:43:19Z"
+  },
+  {
+   "node": 266517633,
+   "highway": "turning_circle",
+   "version": 5,
+   "timestamp": "2025-01-25T15:45:08Z"
+  },
+  {
+   "node": 266517989,
+   "highway": "turning_circle",
+   "version": 3,
+   "timestamp": "2011-01-22T09:25:18Z"
+  },
+  {
+   "node": 268184063,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2014-08-11T22:19:32Z"
+  },
+  {
+   "node": 268184072,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2014-08-11T22:19:32Z"
+  },
+  {
+   "node": 269303594,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2011-01-23T14:41:13Z"
+  },
+  {
+   "node": 271914490,
+   "highway": "turning_circle",
+   "version": 3,
+   "timestamp": "2011-02-08T14:28:46Z"
+  },
+  {
+   "node": 283708110,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2014-11-12T22:17:05Z"
+  },
+  {
+   "node": 283708124,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2014-11-12T22:17:05Z"
+  },
+  {
+   "node": 283708328,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2014-11-12T22:17:05Z"
+  },
+  {
+   "node": 283708751,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2014-11-12T22:17:05Z"
+  },
+  {
+   "node": 286272759,
+   "highway": "turning_circle",
+   "version": 4,
+   "timestamp": "2022-09-11T16:55:45Z"
+  },
+  {
+   "node": 286274192,
+   "highway": "turning_circle",
+   "version": 3,
+   "timestamp": "2026-10-15T06:08:26Z"
+  },
+  {
+   "node": 286274684,
+   "highway": "turning_circle",
+   "version": 4,
+   "timestamp": "2022-09-11T16:55:45Z"
+  },
+  {
+   "node": 286278166,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2017-10-28T12:04:53Z"
+  },
+  {
+   "node": 295979206,
+   "highway": "turning_circle",
+   "version": 4,
+   "timestamp": "2022-11-07T12:06:10Z"
+  },
+  {
+   "node": 296307932,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2014-07-27T14:38:41Z"
+  },
+  {
+   "node": 299222929,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2014-11-12T22:17:06Z"
+  },
+  {
+   "node": 299924625,
+   "highway": "turning_circle",
+   "version": 3,
+   "timestamp": "2016-05-05T14:52:26Z"
+  },
+  {
+   "node": 303542733,
+   "highway": "turning_circle",
+   "version": 4,
+   "timestamp": "2019-10-29T06:56:46Z"
+  },
+  {
+   "node": 304100999,
+   "highway": "turning_circle",
+   "version": 10,
+   "timestamp": "2025-01-27T13:39:25Z"
+  },
+  {
+   "node": 308249464,
+   "highway": "turning_circle",
+   "version": 5,
+   "timestamp": "2026-06-09T19:48:03Z"
+  },
+  {
+   "node": 308249517,
+   "highway": "turning_circle",
+   "version": 6,
+   "timestamp": "2016-05-05T11:25:04Z"
+  },
+  {
+   "node": 412834496,
+   "highway": "turning_circle",
+   "version": 3,
+   "timestamp": "2019-04-14T06:50:11Z"
+  },
+  {
+   "node": 429278528,
+   "highway": "turning_circle",
+   "version": 3,
+   "timestamp": "2011-02-24T08:36:59Z"
+  },
+  {
+   "node": 429278563,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2014-11-02T14:40:16Z"
+  },
+  {
+   "node": 429278612,
+   "highway": "turning_circle",
+   "version": 4,
+   "timestamp": "2014-11-02T12:18:44Z"
+  },
+  {
+   "node": 429282457,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2011-03-25T13:53:45Z"
+  },
+  {
+   "node": 429282474,
+   "highway": "turning_circle",
+   "version": 4,
+   "timestamp": "2025-01-25T18:48:27Z"
+  },
+  {
+   "node": 462300800,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2026-03-07T20:12:45Z"
+  },
+  {
+   "node": 1028839435,
+   "highway": "turning_circle",
+   "version": 3,
+   "timestamp": "2025-08-04T14:37:19Z"
+  },
+  {
+   "node": 1028839713,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2010-12-09T12:19:57Z"
+  },
+  {
+   "node": 1028839808,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2020-10-23T05:35:45Z"
+  },
+  {
+   "node": 1034092158,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2019-10-12T07:06:06Z"
+  },
+  {
+   "node": 1037910519,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2010-12-13T23:40:21Z"
+  },
+  {
+   "node": 1038155704,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2022-05-12T11:32:07Z"
+  },
+  {
+   "node": 1038259252,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2022-05-25T08:10:11Z"
+  },
+  {
+   "node": 1038797137,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2023-10-02T20:17:48Z"
+  },
+  {
+   "node": 1039057477,
+   "highway": "turning_circle",
+   "version": 3,
+   "timestamp": "2022-05-12T13:31:51Z"
+  },
+  {
+   "node": 1040908865,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2014-08-11T22:24:47Z"
+  },
+  {
+   "node": 1040909218,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2022-05-25T08:10:11Z"
+  },
+  {
+   "node": 1041169215,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2010-12-16T14:20:03Z"
+  },
+  {
+   "node": 1041169339,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2010-12-16T14:20:11Z"
+  },
+  {
+   "node": 1041169493,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2010-12-16T14:20:19Z"
+  },
+  {
+   "node": 1041815244,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2026-01-27T04:56:54Z"
+  },
+  {
+   "node": 1041816752,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2010-12-16T21:06:36Z"
+  },
+  {
+   "node": 1043707147,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2021-01-17T13:27:00Z"
+  },
+  {
+   "node": 1052670350,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2010-12-20T21:56:41Z"
+  },
+  {
+   "node": 1055499430,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2016-07-27T23:11:11Z"
+  },
+  {
+   "node": 1062867930,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2010-12-24T23:31:19Z"
+  },
+  {
+   "node": 1062868072,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2010-12-24T23:31:22Z"
+  },
+  {
+   "node": 1062868443,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2010-12-24T23:31:32Z"
+  },
+  {
+   "node": 1062884310,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2010-12-24T23:39:48Z"
+  },
+  {
+   "node": 1063810913,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2010-12-25T11:32:57Z"
+  },
+  {
+   "node": 1063810921,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2014-12-22T18:02:14Z"
+  },
+  {
+   "node": 1063810927,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2025-08-31T07:27:21Z"
+  },
+  {
+   "node": 1063810936,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2010-12-25T11:32:58Z"
+  },
+  {
+   "node": 1063811061,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2010-12-25T11:33:01Z"
+  },
+  {
+   "node": 1063811343,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2014-12-22T18:02:14Z"
+  },
+  {
+   "node": 1063811608,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2025-08-31T07:27:21Z"
+  },
+  {
+   "node": 1063811852,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2014-12-22T20:18:41Z"
+  },
+  {
+   "node": 1063811931,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2010-12-25T11:33:25Z"
+  },
+  {
+   "node": 1063812114,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2025-08-31T07:27:21Z"
+  },
+  {
+   "node": 1064413926,
+   "highway": "turning_circle",
+   "version": 3,
+   "timestamp": "2025-10-21T21:37:36Z"
+  },
+  {
+   "node": 1064414021,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2025-11-02T11:51:39Z"
+  },
+  {
+   "node": 1064550399,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2010-12-25T19:46:08Z"
+  },
+  {
+   "node": 1064550645,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2010-12-25T19:46:14Z"
+  },
+  {
+   "node": 1064550688,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2010-12-25T19:46:15Z"
+  },
+  {
+   "node": 1064602360,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2010-12-25T21:40:42Z"
+  },
+  {
+   "node": 1064602506,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2014-11-01T22:22:57Z"
+  },
+  {
+   "node": 1064602522,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2014-07-28T16:53:48Z"
+  },
+  {
+   "node": 1064602524,
+   "highway": "turning_circle",
+   "version": 3,
+   "timestamp": "2025-08-31T07:27:21Z"
+  },
+  {
+   "node": 1064602526,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2010-12-25T21:41:01Z"
+  },
+  {
+   "node": 1064602529,
+   "highway": "turning_circle",
+   "version": 3,
+   "timestamp": "2016-09-21T19:23:24Z"
+  },
+  {
+   "node": 1064602591,
+   "highway": "turning_circle",
+   "version": 3,
+   "timestamp": "2025-08-31T07:27:21Z"
+  },
+  {
+   "node": 1064602597,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2010-12-25T21:41:10Z"
+  },
+  {
+   "node": 1064602602,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2010-12-25T21:41:11Z"
+  },
+  {
+   "node": 1064602612,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2014-12-22T20:18:41Z"
+  },
+  {
+   "node": 1064602651,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2010-12-25T21:41:16Z"
+  },
+  {
+   "node": 1064602662,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2010-12-25T21:41:17Z"
+  },
+  {
+   "node": 1064602804,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2010-12-25T21:41:40Z"
+  },
+  {
+   "node": 1064700921,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2024-11-23T07:08:35Z"
+  },
+  {
+   "node": 1064700968,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2010-12-25T23:09:50Z"
+  },
+  {
+   "node": 1064715189,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2010-12-25T23:33:26Z"
+  },
+  {
+   "node": 1066469085,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2010-12-26T19:59:06Z"
+  },
+  {
+   "node": 1066469089,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2016-05-05T20:57:11Z"
+  },
+  {
+   "node": 1066469255,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2011-01-22T09:25:18Z"
+  },
+  {
+   "node": 1066469313,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2010-12-26T19:59:10Z"
+  },
+  {
+   "node": 1066469468,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2011-01-22T09:25:18Z"
+  },
+  {
+   "node": 1068107557,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2017-10-07T22:22:38Z"
+  },
+  {
+   "node": 1068205416,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2010-12-27T19:55:28Z"
+  },
+  {
+   "node": 1072506080,
+   "highway": "turning_circle",
+   "version": 4,
+   "timestamp": "2023-10-01T14:29:24Z"
+  },
+  {
+   "node": 1072506211,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2010-12-30T09:41:15Z"
+  },
+  {
+   "node": 1073454031,
+   "highway": "turning_circle",
+   "version": 4,
+   "timestamp": "2022-08-20T21:33:47Z"
+  },
+  {
+   "node": 1073492157,
+   "highway": "turning_circle",
+   "version": 3,
+   "timestamp": "2016-05-05T21:30:12Z"
+  },
+  {
+   "node": 1073690000,
+   "highway": "turning_circle",
+   "version": 3,
+   "timestamp": "2016-11-21T23:15:45Z"
+  },
+  {
+   "node": 1077433360,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-01-01T20:52:04Z"
+  },
+  {
+   "node": 1077434156,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-01-01T20:52:18Z"
+  },
+  {
+   "node": 1077674870,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2016-11-28T19:52:11Z"
+  },
+  {
+   "node": 1079893336,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2026-06-09T19:48:03Z"
+  },
+  {
+   "node": 1079893605,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-01-02T23:53:23Z"
+  },
+  {
+   "node": 1079893949,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2011-03-19T13:58:29Z"
+  },
+  {
+   "node": 1079894089,
+   "highway": "turning_circle",
+   "version": 3,
+   "timestamp": "2026-06-09T19:48:03Z"
+  },
+  {
+   "node": 1079894307,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2016-05-03T16:49:45Z"
+  },
+  {
+   "node": 1080535338,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-01-03T14:18:20Z"
+  },
+  {
+   "node": 1080535415,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-01-03T14:18:27Z"
+  },
+  {
+   "node": 1081009641,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-01-03T20:59:00Z"
+  },
+  {
+   "node": 1081784474,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-01-04T08:59:38Z"
+  },
+  {
+   "node": 1083450785,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2012-10-01T13:20:14Z"
+  },
+  {
+   "node": 1083450791,
+   "highway": "turning_circle",
+   "version": 3,
+   "timestamp": "2012-10-02T21:05:36Z"
+  },
+  {
+   "node": 1083450826,
+   "highway": "turning_circle",
+   "version": 3,
+   "timestamp": "2014-11-06T19:52:31Z"
+  },
+  {
+   "node": 1083450837,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2012-10-01T13:20:13Z"
+  },
+  {
+   "node": 1083450848,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-01-05T12:30:00Z"
+  },
+  {
+   "node": 1083450879,
+   "highway": "turning_circle",
+   "version": 4,
+   "timestamp": "2014-11-06T19:52:31Z"
+  },
+  {
+   "node": 1083450882,
+   "highway": "turning_circle",
+   "version": 4,
+   "timestamp": "2014-11-06T19:52:32Z"
+  },
+  {
+   "node": 1083450888,
+   "highway": "turning_circle",
+   "version": 4,
+   "timestamp": "2014-11-06T19:52:32Z"
+  },
+  {
+   "node": 1083450913,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2012-10-01T13:17:39Z"
+  },
+  {
+   "node": 1084682990,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2022-10-06T07:25:12Z"
+  },
+  {
+   "node": 1084683401,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-01-06T01:14:39Z"
+  },
+  {
+   "node": 1086036759,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2014-11-02T12:18:44Z"
+  },
+  {
+   "node": 1086056215,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2014-11-01T19:22:08Z"
+  },
+  {
+   "node": 1086069123,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2022-05-07T12:56:48Z"
+  },
+  {
+   "node": 1086069243,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2014-11-01T19:45:37Z"
+  },
+  {
+   "node": 1092572318,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2016-05-05T11:25:00Z"
+  },
+  {
+   "node": 1105090196,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-01-15T19:45:21Z"
+  },
+  {
+   "node": 1105313224,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-01-15T21:06:11Z"
+  },
+  {
+   "node": 1107449775,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-01-17T10:59:41Z"
+  },
+  {
+   "node": 1107710985,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2011-01-17T17:26:50Z"
+  },
+  {
+   "node": 1107802157,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2014-11-12T15:48:16Z"
+  },
+  {
+   "node": 1107802822,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-01-17T17:26:02Z"
+  },
+  {
+   "node": 1107871550,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2018-11-17T10:28:58Z"
+  },
+  {
+   "node": 1109153826,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-01-18T16:38:26Z"
+  },
+  {
+   "node": 1115451159,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2017-08-28T10:50:55Z"
+  },
+  {
+   "node": 1115451310,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2020-04-04T11:21:00Z"
+  },
+  {
+   "node": 1116937015,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-01-23T14:40:53Z"
+  },
+  {
+   "node": 1116937116,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2024-01-03T13:43:33Z"
+  },
+  {
+   "node": 1117714742,
+   "highway": "turning_circle",
+   "version": 3,
+   "timestamp": "2014-11-06T15:36:47Z"
+  },
+  {
+   "node": 1117723516,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-01-23T22:11:19Z"
+  },
+  {
+   "node": 1117723638,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-01-23T22:11:22Z"
+  },
+  {
+   "node": 1123934673,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2014-11-01T19:45:37Z"
+  },
+  {
+   "node": 1124986141,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2016-05-04T21:28:22Z"
+  },
+  {
+   "node": 1134289549,
+   "highway": "turning_circle",
+   "version": 3,
+   "timestamp": "2023-10-02T20:17:48Z"
+  },
+  {
+   "node": 1142118150,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2014-07-07T11:05:34Z"
+  },
+  {
+   "node": 1156716587,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2017-08-03T17:13:09Z"
+  },
+  {
+   "node": 1156777496,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2022-09-11T16:55:45Z"
+  },
+  {
+   "node": 1156777802,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2022-09-11T16:55:45Z"
+  },
+  {
+   "node": 1167973918,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-02-23T11:20:24Z"
+  },
+  {
+   "node": 1168843185,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2019-10-27T08:04:45Z"
+  },
+  {
+   "node": 1168876575,
+   "highway": "turning_circle",
+   "version": 3,
+   "timestamp": "2020-02-05T17:48:56Z"
+  },
+  {
+   "node": 1168885167,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-02-23T21:32:58Z"
+  },
+  {
+   "node": 1168885285,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-02-23T21:33:00Z"
+  },
+  {
+   "node": 1169629985,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-02-24T09:02:55Z"
+  },
+  {
+   "node": 1169630099,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-02-24T09:02:58Z"
+  },
+  {
+   "node": 1170072011,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-02-24T12:49:17Z"
+  },
+  {
+   "node": 1170072272,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-02-24T12:49:25Z"
+  },
+  {
+   "node": 1170072284,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-02-24T12:49:25Z"
+  },
+  {
+   "node": 1170072371,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-02-24T12:49:28Z"
+  },
+  {
+   "node": 1178239669,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-02-27T23:35:25Z"
+  },
+  {
+   "node": 1178239730,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-02-27T23:35:26Z"
+  },
+  {
+   "node": 1178239815,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-02-27T23:35:28Z"
+  },
+  {
+   "node": 1178256160,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-02-27T23:47:10Z"
+  },
+  {
+   "node": 1181501729,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2021-10-18T19:47:43Z"
+  },
+  {
+   "node": 1182562537,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-03-02T11:00:12Z"
+  },
+  {
+   "node": 1183500042,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-03-02T21:48:17Z"
+  },
+  {
+   "node": 1202967768,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2017-09-11T08:14:18Z"
+  },
+  {
+   "node": 1202971129,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2011-03-15T12:48:20Z"
+  },
+  {
+   "node": 1241655931,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2012-10-02T21:09:15Z"
+  },
+  {
+   "node": 1241656685,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2012-10-01T13:20:13Z"
+  },
+  {
+   "node": 1586067754,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2016-05-03T21:32:25Z"
+  },
+  {
+   "node": 1586067901,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2016-05-03T21:32:25Z"
+  },
+  {
+   "node": 1778890592,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2016-11-21T23:15:45Z"
+  },
+  {
+   "node": 1778890705,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2016-11-21T23:15:45Z"
+  },
+  {
+   "node": 1778890767,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2012-06-07T07:51:25Z"
+  },
+  {
+   "node": 1833253178,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2022-04-10T17:04:19Z"
+  },
+  {
+   "node": 2048139024,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2019-10-01T12:01:00Z"
+  },
+  {
+   "node": 2048145877,
+   "highway": "turning_circle",
+   "version": 4,
+   "timestamp": "2019-07-18T15:42:08Z"
+  },
+  {
+   "node": 2091858706,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2013-01-02T08:00:14Z"
+  },
+  {
+   "node": 2091858819,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2013-01-02T08:00:17Z"
+  },
+  {
+   "node": 2151666021,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2013-02-12T10:44:36Z"
+  },
+  {
+   "node": 2342477269,
+   "highway": "turning_circle",
+   "version": 5,
+   "timestamp": "2025-01-31T20:45:29Z"
+  },
+  {
+   "node": 2614891874,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2016-05-01T21:48:39Z"
+  },
+  {
+   "node": 2757921986,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2014-04-01T09:31:35Z"
+  },
+  {
+   "node": 2757945170,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2014-04-01T09:46:48Z"
+  },
+  {
+   "node": 2757945173,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2014-04-01T09:46:48Z"
+  },
+  {
+   "node": 2757945176,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2014-04-01T09:46:48Z"
+  },
+  {
+   "node": 2757945188,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2014-04-01T09:46:49Z"
+  },
+  {
+   "node": 2758201941,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2014-04-01T12:18:16Z"
+  },
+  {
+   "node": 2907772312,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2016-05-05T11:25:03Z"
+  },
+  {
+   "node": 3011501283,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2022-05-25T08:10:11Z"
+  },
+  {
+   "node": 3012131634,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2016-07-11T18:06:40Z"
+  },
+  {
+   "node": 3161621573,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2014-11-01T20:19:37Z"
+  },
+  {
+   "node": 3183734704,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2022-11-07T10:40:45Z"
+  },
+  {
+   "node": 3183734705,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2022-11-07T10:40:45Z"
+  },
+  {
+   "node": 3183734706,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2014-11-12T22:16:44Z"
+  },
+  {
+   "node": 3183734707,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2016-10-23T20:49:31Z"
+  },
+  {
+   "node": 3183734708,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2022-11-07T10:39:23Z"
+  },
+  {
+   "node": 3183734710,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2014-11-12T22:16:44Z"
+  },
+  {
+   "node": 3183734713,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2014-11-12T22:16:45Z"
+  },
+  {
+   "node": 3248144080,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2014-12-22T18:51:19Z"
+  },
+  {
+   "node": 3248144296,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2014-12-22T18:51:21Z"
+  },
+  {
+   "node": 3251185743,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2022-09-11T13:10:42Z"
+  },
+  {
+   "node": 3302113542,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2015-01-21T09:48:50Z"
+  },
+  {
+   "node": 3302240914,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2015-01-21T11:05:39Z"
+  },
+  {
+   "node": 3309260237,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2015-01-25T10:18:38Z"
+  },
+  {
+   "node": 3722013385,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2024-04-07T07:01:56Z"
+  },
+  {
+   "node": 4161774236,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2016-05-02T16:55:06Z"
+  },
+  {
+   "node": 4161774399,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2016-05-02T16:55:07Z"
+  },
+  {
+   "node": 4161774776,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2016-05-02T16:55:11Z"
+  },
+  {
+   "node": 4161774802,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2016-05-02T16:55:12Z"
+  },
+  {
+   "node": 4161774823,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2016-05-02T16:55:12Z"
+  },
+  {
+   "node": 4163591813,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2016-05-03T16:49:29Z"
+  },
+  {
+   "node": 4164032895,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2016-05-03T21:32:13Z"
+  },
+  {
+   "node": 4167674167,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2016-05-05T14:51:56Z"
+  },
+  {
+   "node": 4417866809,
+   "highway": "turning_circle",
+   "version": 4,
+   "timestamp": "2024-04-18T18:18:57Z"
+  },
+  {
+   "node": 4460944153,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2016-10-23T20:49:12Z"
+  },
+  {
+   "node": 5031003605,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2017-08-12T18:54:51Z"
+  },
+  {
+   "node": 5132836337,
+   "highway": "turning_circle",
+   "version": 4,
+   "timestamp": "2026-06-09T19:48:04Z"
+  },
+  {
+   "node": 5154284080,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2017-10-07T22:22:34Z"
+  },
+  {
+   "node": 5200802101,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2017-10-30T20:26:12Z"
+  },
+  {
+   "node": 6593196101,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2021-10-15T15:56:22Z"
+  },
+  {
+   "node": 7429717686,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2021-10-26T09:17:41Z"
+  },
+  {
+   "node": 8415615639,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2021-02-11T16:50:54Z"
+  },
+  {
+   "node": 9174866980,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2021-10-15T16:44:20Z"
+  },
+  {
+   "node": 9174867180,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2023-12-30T22:23:56Z"
+  },
+  {
+   "node": 9198006630,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2021-10-24T17:57:27Z"
+  },
+  {
+   "node": 9522099183,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2022-02-20T15:58:49Z"
+  },
+  {
+   "node": 9522099951,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2022-02-20T15:58:49Z"
+  },
+  {
+   "node": 9787830929,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2022-06-01T10:37:54Z"
+  },
+  {
+   "node": 9864419961,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2023-09-21T19:57:31Z"
+  },
+  {
+   "node": 10078016098,
+   "highway": "turning_circle",
+   "version": 3,
+   "timestamp": "2025-11-05T17:08:13Z"
+  },
+  {
+   "node": 10094793471,
+   "highway": "turning_circle",
+   "version": 2,
+   "timestamp": "2023-10-02T20:17:49Z"
+  },
+  {
+   "node": 10780227050,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2023-04-02T18:20:16Z"
+  },
+  {
+   "node": 11254498504,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2023-10-11T06:40:49Z"
+  },
+  {
+   "node": 12259417310,
+   "highway": "turning_circle",
+   "version": 3,
+   "timestamp": "2025-03-21T06:25:32Z"
+  },
+  {
+   "node": 12580249553,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2025-02-11T21:10:21Z"
+  },
+  {
+   "node": 13625640463,
+   "highway": "turning_circle",
+   "version": 1,
+   "timestamp": "2026-03-07T20:12:44Z"
+  }
+ ],
+ "unverifiedRelationWays": [
+  {
+   "way": 139689593,
+   "name": "",
+   "class": "service",
+   "edges": 8,
+   "prohibited": false,
+   "relations": [
+    {
+     "id": 18046437,
+     "ref": "10",
+     "version": 7,
+     "timestamp": "2026-08-03T19:27:44Z"
+    }
+   ],
+   "osm": {
+    "version": 6,
+    "timestamp": "2022-02-20T15:58:49Z",
+    "tags": {
+     "highway": "service",
+     "oneway": "yes"
+    }
+   }
+  },
+  {
+   "way": 139828354,
+   "name": "",
+   "class": "service",
+   "edges": 14,
+   "prohibited": false,
+   "relations": [
+    {
+     "id": 18046438,
+     "ref": "10",
+     "version": 7,
+     "timestamp": "2026-08-03T19:27:44Z"
+    }
+   ],
+   "osm": {
+    "version": 6,
+    "timestamp": "2024-09-14T23:05:35Z",
+    "tags": {
+     "highway": "service",
+     "oneway": "yes"
+    }
+   }
+  },
+  {
+   "way": 139919979,
+   "name": "",
+   "class": "service",
+   "edges": 4,
+   "prohibited": false,
+   "relations": [
+    {
+     "id": 14026384,
+     "ref": "429",
+     "version": 8,
+     "timestamp": "2026-06-10T17:46:13Z"
+    },
+    {
+     "id": 14026386,
+     "ref": "141",
+     "version": 9,
+     "timestamp": "2026-07-23T09:31:54Z"
+    },
+    {
+     "id": 18012631,
+     "ref": "440",
+     "version": 12,
+     "timestamp": "2026-07-23T09:31:54Z"
+    },
+    {
+     "id": 18018729,
+     "ref": "444",
+     "version": 7,
+     "timestamp": "2026-07-30T09:34:03Z"
+    }
+   ],
+   "osm": {
+    "version": 6,
+    "timestamp": "2024-06-17T18:22:55Z",
+    "tags": {
+     "highway": "service",
+     "oneway": "yes"
+    }
+   }
+  },
+  {
+   "way": 287611485,
+   "name": "",
+   "class": "service",
+   "edges": 4,
+   "prohibited": false,
+   "relations": [
+    {
+     "id": 9556155,
+     "ref": "75",
+     "version": 26,
+     "timestamp": "2026-08-05T14:08:55Z"
+    },
+    {
+     "id": 9556157,
+     "ref": "74",
+     "version": 20,
+     "timestamp": "2026-08-03T19:29:51Z"
+    },
+    {
+     "id": 9556159,
+     "ref": "72",
+     "version": 34,
+     "timestamp": "2026-08-09T13:49:42Z"
+    },
+    {
+     "id": 9556162,
+     "ref": "71",
+     "version": 33,
+     "timestamp": "2026-08-09T13:49:42Z"
+    },
+    {
+     "id": 9556164,
+     "ref": "70",
+     "version": 43,
+     "timestamp": "2026-08-09T13:49:42Z"
+    }
+   ],
+   "osm": {
+    "version": 5,
+    "timestamp": "2022-11-08T04:41:45Z",
+    "tags": {
+     "highway": "service",
+     "oneway": "yes"
+    }
+   }
+  },
+  {
+   "way": 287611487,
+   "name": "Nygatan",
+   "class": "service",
+   "edges": 7,
+   "prohibited": false,
+   "relations": [
+    {
+     "id": 14026386,
+     "ref": "141",
+     "version": 9,
+     "timestamp": "2026-07-23T09:31:54Z"
+    }
+   ],
+   "osm": {
+    "version": 6,
+    "timestamp": "2022-12-26T08:53:25Z",
+    "tags": {
+     "highway": "service",
+     "name": "Nygatan",
+     "oneway": "yes"
+    }
+   }
+  },
+  {
+   "way": 372856736,
+   "name": "Ensjövägen",
+   "class": "service",
+   "edges": 78,
+   "prohibited": false,
+   "relations": [
+    {
+     "id": 14025628,
+     "ref": "129",
+     "version": 3,
+     "timestamp": "2026-07-21T11:14:47Z"
+    },
+    {
+     "id": 14025629,
+     "ref": "123",
+     "version": 3,
+     "timestamp": "2026-07-21T11:14:47Z"
+    }
+   ],
+   "osm": {
+    "version": 7,
+    "timestamp": "2024-04-18T20:24:04Z",
+    "tags": {
+     "highway": "service",
+     "name": "Ensjövägen"
+    }
+   }
+  },
+  {
+   "way": 391478868,
+   "name": "",
+   "class": "service",
+   "edges": 3,
+   "prohibited": false,
+   "relations": [
+    {
+     "id": 4117428,
+     "ref": "420",
+     "version": 35,
+     "timestamp": "2025-09-10T19:43:07Z"
+    },
+    {
+     "id": 4117429,
+     "ref": "420",
+     "version": 38,
+     "timestamp": "2026-08-17T08:20:38Z"
+    },
+    {
+     "id": 10744523,
+     "ref": "N32",
+     "version": 212,
+     "timestamp": "2026-10-22T08:29:45Z"
+    },
+    {
+     "id": 10744524,
+     "ref": "N32",
+     "version": 222,
+     "timestamp": "2026-09-27T21:42:24Z"
+    },
+    {
+     "id": 10773930,
+     "ref": "N602",
+     "version": 210,
+     "timestamp": "2026-09-27T21:42:24Z"
+    },
+    {
+     "id": 10773931,
+     "ref": "N602",
+     "version": 222,
+     "timestamp": "2026-09-27T21:42:24Z"
+    },
+    {
+     "id": 10797480,
+     "ref": "612",
+     "version": 159,
+     "timestamp": "2026-09-30T20:16:53Z"
+    },
+    {
+     "id": 10799953,
+     "ref": "612",
+     "version": 170,
+     "timestamp": "2026-09-28T19:38:28Z"
+    },
+    {
+     "id": 10802317,
+     "ref": "N601",
+     "version": 238,
+     "timestamp": "2026-09-30T20:16:53Z"
+    },
+    {
+     "id": 10802318,
+     "ref": "N601",
+     "version": 290,
+     "timestamp": "2026-10-15T07:42:00Z"
+    },
+    {
+     "id": 10802727,
+     "ref": "601",
+     "version": 292,
+     "timestamp": "2026-10-15T07:42:00Z"
+    },
+    {
+     "id": 14026383,
+     "ref": "429",
+     "version": 8,
+     "timestamp": "2026-06-10T17:46:13Z"
+    },
+    {
+     "id": 18012631,
+     "ref": "440",
+     "version": 12,
+     "timestamp": "2026-07-23T09:31:54Z"
+    }
+   ],
+   "osm": {
+    "version": 3,
+    "timestamp": "2024-06-17T18:22:55Z",
+    "tags": {
+     "highway": "service",
+     "oneway": "yes"
+    }
+   }
+  },
+  {
+   "way": 410282222,
+   "name": "",
+   "class": "service",
+   "edges": 6,
+   "prohibited": false,
+   "relations": [
+    {
+     "id": 9556155,
+     "ref": "75",
+     "version": 26,
+     "timestamp": "2026-08-05T14:08:55Z"
+    },
+    {
+     "id": 9556157,
+     "ref": "74",
+     "version": 20,
+     "timestamp": "2026-08-03T19:29:51Z"
+    },
+    {
+     "id": 9556159,
+     "ref": "72",
+     "version": 34,
+     "timestamp": "2026-08-09T13:49:42Z"
+    },
+    {
+     "id": 9556162,
+     "ref": "71",
+     "version": 33,
+     "timestamp": "2026-08-09T13:49:42Z"
+    },
+    {
+     "id": 9556164,
+     "ref": "70",
+     "version": 43,
+     "timestamp": "2026-08-09T13:49:42Z"
+    },
+    {
+     "id": 9903185,
+     "ref": "Campusbussen",
+     "version": 30,
+     "timestamp": "2026-08-03T14:33:14Z"
+    }
+   ],
+   "osm": {
+    "version": 4,
+    "timestamp": "2022-08-16T15:28:21Z",
+    "tags": {
+     "highway": "service",
+     "oneway": "yes"
+    }
+   }
+  },
+  {
+   "way": 410282224,
+   "name": "",
+   "class": "service",
+   "edges": 6,
+   "prohibited": false,
+   "relations": [
+    {
+     "id": 9556154,
+     "ref": "75",
+     "version": 26,
+     "timestamp": "2026-08-03T19:39:07Z"
+    },
+    {
+     "id": 9556156,
+     "ref": "74",
+     "version": 22,
+     "timestamp": "2026-08-04T08:20:06Z"
+    },
+    {
+     "id": 9556158,
+     "ref": "72",
+     "version": 41,
+     "timestamp": "2026-08-09T13:49:42Z"
+    },
+    {
+     "id": 9556161,
+     "ref": "71",
+     "version": 37,
+     "timestamp": "2026-08-09T13:49:42Z"
+    },
+    {
+     "id": 9556163,
+     "ref": "70",
+     "version": 44,
+     "timestamp": "2026-08-09T13:49:42Z"
+    },
+    {
+     "id": 9903184,
+     "ref": "Campusbussen",
+     "version": 27,
+     "timestamp": "2025-09-27T18:39:12Z"
+    }
+   ],
+   "osm": {
+    "version": 4,
+    "timestamp": "2022-08-16T15:28:15Z",
+    "tags": {
+     "highway": "service",
+     "oneway": "yes"
+    }
+   }
+  },
+  {
+   "way": 712374013,
+   "name": "",
+   "class": "service",
+   "edges": 5,
+   "prohibited": false,
+   "relations": [
+    {
+     "id": 9556155,
+     "ref": "75",
+     "version": 26,
+     "timestamp": "2026-08-05T14:08:55Z"
+    },
+    {
+     "id": 9556157,
+     "ref": "74",
+     "version": 20,
+     "timestamp": "2026-08-03T19:29:51Z"
+    },
+    {
+     "id": 9556159,
+     "ref": "72",
+     "version": 34,
+     "timestamp": "2026-08-09T13:49:42Z"
+    },
+    {
+     "id": 9556162,
+     "ref": "71",
+     "version": 33,
+     "timestamp": "2026-08-09T13:49:42Z"
+    },
+    {
+     "id": 9556164,
+     "ref": "70",
+     "version": 43,
+     "timestamp": "2026-08-09T13:49:42Z"
+    },
+    {
+     "id": 9903185,
+     "ref": "Campusbussen",
+     "version": 30,
+     "timestamp": "2026-08-03T14:33:14Z"
+    }
+   ],
+   "osm": {
+    "version": 3,
+    "timestamp": "2022-11-08T04:40:06Z",
+    "tags": {
+     "highway": "service",
+     "oneway": "yes"
+    }
+   }
+  },
+  {
+   "way": 851404088,
+   "name": "",
+   "class": "service",
+   "edges": 16,
+   "prohibited": false,
+   "relations": [
+    {
+     "id": 14026383,
+     "ref": "429",
+     "version": 8,
+     "timestamp": "2026-06-10T17:46:13Z"
+    },
+    {
+     "id": 14026384,
+     "ref": "429",
+     "version": 8,
+     "timestamp": "2026-06-10T17:46:13Z"
+    }
+   ],
+   "osm": {
+    "version": 2,
+    "timestamp": "2022-04-10T17:04:20Z",
+    "tags": {
+     "highway": "service"
+    }
+   }
+  },
+  {
+   "way": 1050810163,
+   "name": "",
+   "class": "service",
+   "edges": 3,
+   "prohibited": false,
+   "relations": [
+    {
+     "id": 14026383,
+     "ref": "429",
+     "version": 8,
+     "timestamp": "2026-06-10T17:46:13Z"
+    },
+    {
+     "id": 14026384,
+     "ref": "429",
+     "version": 8,
+     "timestamp": "2026-06-10T17:46:13Z"
+    }
+   ],
+   "osm": {
+    "version": 1,
+    "timestamp": "2022-04-10T17:04:19Z",
+    "tags": {
+     "highway": "service",
+     "oneway": "yes"
+    }
+   }
+  },
+  {
+   "way": 1087780574,
+   "name": "",
+   "class": "service",
+   "edges": 2,
+   "prohibited": false,
+   "relations": [
+    {
+     "id": 14026386,
+     "ref": "141",
+     "version": 9,
+     "timestamp": "2026-07-23T09:31:54Z"
+    }
+   ],
+   "osm": {
+    "version": 2,
+    "timestamp": "2022-11-08T04:40:44Z",
+    "tags": {
+     "highway": "service"
+    }
+   }
+  }
+ ]
+}

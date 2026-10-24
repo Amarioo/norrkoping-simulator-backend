@@ -41,8 +41,10 @@ class RoadRoutingTest {
             val edge = n.edges.indices.single { n.nodes[n.edges[it].from].id == from && n.nodes[n.edges[it].to].id == to }
             assertTrue(edge in car, "Missing northbound connection $from -> $to")
         }
-        for (kind in listOf("truck", "bus")) {
-            val candidates = n.edges.indices.filter { if (kind == "truck") n.edges[it].truck else n.edges[it].bus }
+        // Buses use this corridor (verified route 21 through the Kungsgatan gångfartsområde); their access
+        // record and crossing are covered by BusReachabilityTest. Trucks remain excluded from the trap.
+        for (kind in listOf("truck")) {
+            val candidates = n.edges.indices.filter { n.edges[it].truck }
             val through = throughRoadEdges(n, candidates)
             val northbound = n.edges.indices.single {
                 n.edges[it].way == 26154805L && n.nodes[n.edges[it].to].id == 286409016L

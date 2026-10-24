@@ -31,7 +31,7 @@ sealed interface CityCommand {
 }
 
 /** Cars and buses share one occupancy model; rails have their own continuous paths. */
-class RoadTraffic(private val network: TransportNetwork = TransportNetwork.bundled, private val terrain: TerrainService = TerrainService.bundled) {
+class RoadTraffic(private val network: TransportNetwork = TransportNetwork.bundled, private val terrain: TerrainService = TerrainService.bundled, access: RoadAccess = RoadAccess.bundled) {
     private val random = kotlin.random.Random(1309)
     private data class Car(val id: Int, val kind: String, var edge: Int, var progress: Double, var speed: Double = 0.0, var previous: Int = edge, val path: ArrayDeque<Int> = ArrayDeque(), var dwellUntil: Double = 0.0, var lastStop: Int = -1)
     private data class Occupant(val id: Int, val progress: Double, val length: Double)
@@ -40,13 +40,13 @@ class RoadTraffic(private val network: TransportNetwork = TransportNetwork.bundl
     private var nextId = 1
     private val reservations = mutableMapOf<Int, Reservation>()
     private fun length(car: Car) = when(car.kind) { "truck" -> .49; "bus" -> .48; "estate" -> .19; else -> .16 }
-    // Eliminate routes that force a U-turn at a vehicle-policy boundary, and directed traps.
-    private val allowed = listOf("compact", "estate", "truck", "bus").associateWith { kind ->
-        val candidates = network.edges.indices.filter { kind != "truck" || network.edges[it].truck }.filter { kind != "bus" || network.edges[it].bus }
-        // Tiny standalone/test networks can have no through route at all; retain their finite-route
-        // behavior. The bundled city has thousands of through edges for every supported kind.
-        throughRoadEdges(network, candidates).ifEmpty { candidates.toSet() }
-    }
+    // Eliminate routes that force a U-turn at a vehicle-policy boundary, and directed traps. Bus access
+    // includes verified public-transport corridors and explicit OSM bus/psv tags; mapped turning
+    // circles remain legitimate termini (see RoadRouting.kt).
+    private val allowed = roadPolicies(network, access)
+    /** Diagnostics for routing tests; not part of the API snapshot. */
+    internal fun allowedEdges(kind: String): Set<Int> = allowed.getValue(kind)
+    internal fun edgeStates(): List<Triple<Int, String, Int>> = cars.map { Triple(it.id, it.kind, it.edge) }
     private val spawnEdges = allowed.mapValues { (_, set) -> set.filter { network.edges[it].length > .7 && network.outgoing[network.edges[it].to]?.isNotEmpty() == true } }
     fun configure(settings: TrafficSettings) {
         for((kind, count) in listOf("compact" to settings.compact, "estate" to settings.estate, "truck" to settings.trucks, "bus" to settings.buses)) {
