@@ -47,6 +47,8 @@ class RoadTraffic(private val network: TransportNetwork = TransportNetwork.bundl
     /** Diagnostics for routing tests; not part of the API snapshot. */
     internal fun allowedEdges(kind: String): Set<Int> = allowed.getValue(kind)
     internal fun edgeStates(): List<Triple<Int, String, Int>> = cars.map { Triple(it.id, it.kind, it.edge) }
+    /** Test hook: every edge change (vehicle id, kind, from edge, to edge). Sampling edgeStates per tick can skip short edges. */
+    internal var transitionListener: ((Int, String, Int, Int) -> Unit)? = null
     private val spawnEdges = allowed.mapValues { (_, set) -> set.filter { network.edges[it].length > .7 && network.outgoing[network.edges[it].to]?.isNotEmpty() == true } }
     fun configure(settings: TrafficSettings) {
         for((kind, count) in listOf("compact" to settings.compact, "estate" to settings.estate, "truck" to settings.trucks, "bus" to settings.buses)) {
@@ -136,6 +138,7 @@ class RoadTraffic(private val network: TransportNetwork = TransportNetwork.bundl
                 if(car.path.isEmpty()) { car.progress=edge.length;car.speed=0.0;break }
                 reservations[edge.to]?.takeIf { it.owner==car.id }?.until=time+(length(car)+.1)/max(.15,car.speed)
                 distance-=rest;car.previous=car.edge;car.edge=car.path.removeFirst();car.progress=0.0
+                transitionListener?.invoke(car.id,car.kind,car.previous,car.edge)
             }
         }
     }

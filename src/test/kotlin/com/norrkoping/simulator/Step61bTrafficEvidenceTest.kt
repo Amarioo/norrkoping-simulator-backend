@@ -6,13 +6,18 @@ import kotlin.test.*
 import kotlinx.serialization.json.*
 
 /**
- * Step 6.1b deterministic traffic evidence: the same seeded RoadTraffic run with Step 6.1 policy
- * (RoadAccess.NONE) and the Step 6.1b policy, tracing every edge transition. Opt-in because it runs
- * minutes of simulated traffic: set STEP61B_EVIDENCE=<output json>. STEP61B_SECONDS sets duration.
+ * OPT-IN long measurement/export run; it does NOT execute in the default `gradlew test`. Set
+ * STEP61B_EVIDENCE=<output json> (optional STEP61B_SECONDS, default 3600; STEP61B_REVERSE runs the
+ * Step 6.1b policy first). Default runtime coverage is Step61bTrafficRegressionTest.
+ *
+ * Replays the live service (TrafficTrace: seed 1309, time scale 20, exact transitions) with Step 6.1
+ * policy (RoadAccess.NONE) and Step 6.1b policy, writes measurements and ASSERTS the acceptance
+ * criteria for Step 6.1b plus the reproduced Step 6.1 regression (so the checks can fail).
  */
 class Step61bTrafficEvidenceTest {
     private val n = TransportNetwork.bundled
     private val terrain = TerrainService.bundled
+    private val scenario = TrafficSettings(600, 170, 150, false, 20.0, buses = 80)
 
     private fun legacy(candidates: List<Int>): Set<Int> {
         val alive = candidates.toMutableSet()
@@ -45,88 +50,39 @@ class Step61bTrafficEvidenceTest {
         }
     }
 
-    private fun run(access: RoadAccess, seconds: Double): JsonObject {
-        lateinit var traffic: RoadTraffic
-        val initMs = measureNanoTime { traffic = RoadTraffic(n, terrain, access) } / 1e6
-        val settings = TrafficSettings(600, 170, 150, false, 1.0, buses = 80)
-        val configureMs = measureNanoTime { traffic.configure(settings) } / 1e6
-        val terminals = access.turnaroundNodes(n)
-        fun edge(from: Long, to: Long, way: Long) = n.edges.indices.single {
-            n.edges[it].way == way && n.nodes[n.edges[it].from].id == from && n.nodes[n.edges[it].to].id == to
-        }
-        val bridgeNorth = edge(286409009L, 286409016L, 26154805L)
-        val bridgeSouth = edge(286409016L, 286409009L, 26154805L)
-        val gangfart = setOf(26154806L, 1050773509L, 444474485L, 1212234765L)
-        val last = HashMap<Int, Int>()
-        val kinds = HashMap<Int, String>()
-        val reversals = mutableMapOf<String, MutableMap<String, Int>>()
-        val reversalSamples = mutableListOf<JsonObject>()
-        val visited = mutableMapOf<String, MutableSet<Int>>()
-        var transitions = 0
-        var truckBridgeNorth = 0; var busBridgeNorth = 0; var busBridgeSouth = 0; var carBridgeNorth = 0
-        var busGangfartNorth = 0; var busGangfartSouth = 0; var outsidePolicy = 0
-        val dwellEpisodes = mutableMapOf<String, Int>()
-        val dwelling = HashMap<Int, String>()
-        val allowed = roadPolicies(n, access)
-        val steps = (seconds / .05).toInt()
-        var tickNs = 0L
-        for (step in 0 until steps) {
-            val ns = measureNanoTime { traffic.tick(.05, step * .05) }
-            if (step >= 600) tickNs += ns // first 30 simulated seconds are JIT warm-up
-            for ((id, kind, e) in traffic.edgeStates()) {
-                kinds[id] = kind
-                visited.getOrPut(kind) { mutableSetOf() }.add(e)
-                val prev = last.put(id, e) ?: continue
-                if (prev == e) continue
-                transitions++
-                if (e !in allowed.getValue(kind)) outsidePolicy++
-                val a = n.edges[prev]; val b = n.edges[e]
-                if (b.from == a.to && b.to == a.from) {
-                    val at = a.to
-                    val type = when {
-                        n.outgoing[at].orEmpty().all { n.edges[it].to == a.from } -> "mappedRoadEnd"
-                        at in terminals -> "turnaroundFacility"
-                        else -> "artificial"
-                    }
-                    reversals.getOrPut(kind) { mutableMapOf() }.merge(type, 1, Int::plus)
-                    if (type == "artificial" && reversalSamples.size < 20) reversalSamples += buildJsonObject {
-                        put("kind", kind); put("node", n.nodes[at].id); put("way", a.way); put("time", step * .05)
-                    }
-                }
-                if (e == bridgeNorth) when (kind) { "truck" -> truckBridgeNorth++; "bus" -> busBridgeNorth++; else -> carBridgeNorth++ }
-                if (e == bridgeSouth && kind == "bus") busBridgeSouth++
-                if (kind == "bus" && b.way in gangfart) {
-                    // Count once per way entry: northbound means decreasing z (scene north).
-                    if (n.edges[prev].way != b.way) if (n.nodes[b.to].z < n.nodes[b.from].z) busGangfartNorth++ else busGangfartSouth++
-                }
-            }
-            if (step % 20 == 0) for (v in traffic.views()) {
-                val stop = v.stop
-                if (stop == null) dwelling.remove(v.id)
-                else if (dwelling[v.id] != stop) { dwelling[v.id] = stop; dwellEpisodes.merge(stop, 1, Int::plus) }
-            }
-        }
-        return buildJsonObject {
-            put("simulatedSeconds", seconds); put("vehicles", traffic.edgeStates().size)
-            put("initialiseMs", initMs); put("configureMs", configureMs); put("tickMs", tickNs / 1e6 / maxOf(1, steps - 600))
-            put("transitions", transitions); put("transitionsOutsidePolicy", outsidePolicy)
-            put("reversals", buildJsonObject { reversals.toSortedMap().forEach { (k, m) -> put(k, buildJsonObject { m.toSortedMap().forEach { (t, c) -> put(t, c) } }) } })
-            put("artificialReversalSamples", JsonArray(reversalSamples))
-            put("bergsbron", buildJsonObject {
-                put("truckNorthboundEntries", truckBridgeNorth); put("carNorthboundEntries", carBridgeNorth)
-                put("busNorthboundEntries", busBridgeNorth); put("busSouthboundEntries", busBridgeSouth)
-                put("busGangfartsomradeNorthbound", busGangfartNorth); put("busGangfartsomradeSouthbound", busGangfartSouth)
+    private fun run(access: RoadAccess, seconds: Double): Pair<TrafficTrace, JsonObject> {
+        lateinit var t: TrafficTrace
+        val ms = measureNanoTime { t = TrafficTrace(n, access).run(scenario, seconds) } / 1e6
+        fun count(kind: String, type: String) = t.reversals.count { it.kind == kind && it.type == type }
+        return t to buildJsonObject {
+            put("simulatedSeconds", t.time); put("wallMs", ms); put("transitions", t.transitions)
+            put("transitionsHiddenFromPerTickSampling", t.hiddenFromSampling)
+            put("transitionsOutsidePolicy", t.violations.size)
+            put("reversals", buildJsonObject {
+                for (kind in listOf("compact", "estate", "truck", "bus")) put(kind, buildJsonObject {
+                    for (type in listOf("mappedRoadEnd", "turnaroundFacility", "artificial")) put(type, count(kind, type))
+                })
             })
-            put("dwellEpisodes", dwellEpisodes.values.sum()); put("distinctStopNamesServed", dwellEpisodes.size)
-            put("skvallertorgetDwells", dwellEpisodes["Skvallertorget"] ?: 0)
-            put("klockaretorpetDwells", dwellEpisodes["Klockaretorpets centrum"] ?: 0)
-            put("distinctEdgesVisited", buildJsonObject { visited.toSortedMap().forEach { (k, s) -> put(k, s.size) } })
+            put("artificialReversals", JsonArray(t.reversals.filter { it.type == "artificial" }.take(20).map { JsonPrimitive(t.describe(it)) }))
+            put("bergsbronEpisodes", JsonArray(t.episodes.map { e -> buildJsonObject {
+                put("vehicle", e.vehicle); put("kind", e.kind); put("entered", e.entered); put("outcome", e.outcome)
+                e.resolved?.let { put("resolved", it) }; put("detail", e.detail)
+            } }))
+            put("crossings", buildJsonObject { for (k in listOf("car", "truck", "bus")) put(k, t.crossings(k).size); put("carPassagesInclBredgatan", t.carPassages().size) })
+            put("gangfartsomradeWayEntries", buildJsonObject { t.gangfartEntries.toSortedMap().forEach { (k, v) -> put(k, v) } })
+            put("skvallertorgetBusesServed", t.dwells.filter { it.stop == "Skvallertorget" }.map { it.vehicle }.distinct().size)
+            put("klockaretorpetBusesServed", t.dwells.filter { it.stop == "Klockaretorpets centrum" }.map { it.vehicle }.distinct().size)
+            put("distinctStopNamesServed", t.dwells.map { it.stop }.distinct().size)
+            put("distinctEdgesVisited", buildJsonObject { t.visited.toSortedMap().forEach { (k, s) -> put(k, s.size) } })
         }
     }
 
     @Test fun evidence() {
-        val out = System.getenv("STEP61B_EVIDENCE") ?: return
-        val seconds = System.getenv("STEP61B_SECONDS")?.toDouble() ?: 1800.0
+        val out = System.getenv("STEP61B_EVIDENCE")
+        // Reported as SKIPPED (not passed) in the default suite; see class comment.
+        org.junit.jupiter.api.Assumptions.assumeTrue(out != null, "opt-in: set STEP61B_EVIDENCE=<output json>")
+        out!!
+        val seconds = System.getenv("STEP61B_SECONDS")?.toDouble() ?: 3600.0
         // Alternate before/after so JIT warm-up does not favour either; first two rounds are warm-up.
         val variants = listOf("before" to RoadAccess.NONE, "after" to RoadAccess.bundled)
         val policySamples = variants.associate { it.first to mutableListOf<Double>() }
@@ -137,22 +93,39 @@ class Step61bTrafficEvidenceTest {
             if (round >= 2) { policySamples.getValue(label).add(p); initSamples.getValue(label).add(i) }
         }
         fun median(v: List<Double>) = v.sorted()[v.size / 2]
-        val policyMs = buildJsonObject {
-            for ((label, _) in variants) put(label, buildJsonObject {
-                put("policyComputationMs", median(policySamples.getValue(label)))
-                put("roadTrafficInitialiseMs", median(initSamples.getValue(label)))
-                put("rounds", policySamples.getValue(label).size)
-            })
-        }
+        val order = if (System.getenv("STEP61B_REVERSE") != null) variants.reversed() else variants
+        val runs = order.associate { (label, access) -> label to run(access, seconds) }
         val report = buildJsonObject {
-            put("note", "Deterministic RoadTraffic seed 1309; before = Step 6.1 policy, after = Step 6.1b. Different allowed sets change random spawns, so counts are behaviour evidence, not paired throughput.")
+            put("note", "Deterministic replay of the live service (seed 1309, time scale 20, scenario 600/170/150/80, every transition traced). Before = Step 6.1 policy, after = Step 6.1b. Different allowed sets change random spawns, so counts are behaviour evidence, not paired throughput.")
             put("static", buildJsonObject { put("before", static(RoadAccess.NONE)); put("after", static(RoadAccess.bundled)) })
-            put("startupMedians", policyMs)
-            // STEP61B_REVERSE runs "after" first, to separate order/JIT effects from policy effects.
-            val order = if (System.getenv("STEP61B_REVERSE") != null) variants.reversed() else variants
+            put("startupMedians", buildJsonObject {
+                for ((label, _) in variants) put(label, buildJsonObject {
+                    put("policyComputationMs", median(policySamples.getValue(label)))
+                    put("roadTrafficInitialiseMs", median(initSamples.getValue(label)))
+                    put("rounds", policySamples.getValue(label).size)
+                })
+            })
             put("order", JsonArray(order.map { JsonPrimitive(it.first) }))
-            for ((label, access) in order) put(label, run(access, seconds))
+            for ((label, r) in runs) put(label, r.second)
         }
         File(out).apply { parentFile?.mkdirs() }.writeText(Json { prettyPrint = true }.encodeToString(JsonObject.serializer(), report) + "\n")
+
+        // Acceptance assertions (after writing, so the report is available when one fails).
+        for ((label, r) in runs) {
+            val t = r.first
+            val artificial = t.reversals.filter { it.type == "artificial" }
+            assertTrue(artificial.isEmpty(), "$label: " + artificial.take(10).joinToString("\n") { t.describe(it) })
+            assertTrue(t.violations.isEmpty(), "$label: " + t.violations.take(10).joinToString("\n") { t.describe(it) })
+            assertTrue(t.episodes.none { it.kind == "truck" }, "$label: " + t.episodes.filter { it.kind == "truck" }.joinToString("\n") { t.describe(it) })
+            assertTrue(t.failedEpisodes().isEmpty(), "$label: " + t.failedEpisodes().joinToString("\n") { t.describe(it) })
+            assertTrue(t.carPassages().size >= 3 && t.crossings("car").isNotEmpty(), "$label: car passages ${t.carPassages().size}, north ${t.crossings("car").size}")
+        }
+        val after = runs.getValue("after").first
+        assertTrue(after.crossings("bus").isNotEmpty(), "Step 6.1b: no bus crossed Bergsbron northbound")
+        assertTrue((after.gangfartEntries["bus-north"] ?: 0) > 0)
+        assertTrue(after.dwells.any { it.stop == "Skvallertorget" })
+        val before = runs.getValue("before").first
+        assertTrue(before.crossings("bus").isEmpty() && before.dwells.none { it.stop == "Skvallertorget" },
+            "Step 6.1 policy should reproduce the lost Skvallertorget service")
     }
 }
