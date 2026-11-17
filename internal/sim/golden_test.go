@@ -11,8 +11,9 @@ import (
 	"testing"
 )
 
-// testdata/golden.json holds reference traces written by the Kotlin implementation
-// (src/test/kotlin/.../GoldenDumpTest.kt). The Go port must reproduce them: the same random numbers,
+// testdata/golden.json holds reference traces written by the earlier Kotlin implementation
+// (GoldenDumpTest.kt in commit 6636e14, the last one with the Kotlin sources). It is frozen: the Go
+// port must reproduce it: the same random numbers,
 // the same vehicle trajectories, flights, drone missions and messages.
 
 var golden = sync.OnceValue(func() map[string]any {

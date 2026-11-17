@@ -13,7 +13,7 @@ import (
 	"testing"
 )
 
-// These tests are the Kotlin test suite, ported. Fixtures stay in src/test/resources.
+// These tests are the earlier Kotlin test suite, ported. Fixtures stay in src/test/resources.
 
 func fixture(t *testing.T, name string) map[string]any {
 	t.Helper()

@@ -4,6 +4,3 @@
 *.iml
 .env
 *.log
-.gradle/
-.kotlin/
-build/

@@ -1,5 +1,5 @@
-// Package resources embeds the bundled map data into the Go binary. The files stay where the Kotlin
-// build reads them, so both implementations use the same single copy.
+// Package resources embeds the bundled map data into the Go binary. The files stay in the
+// directory the UI repository's importers write to.
 package resources
 
 import "embed"

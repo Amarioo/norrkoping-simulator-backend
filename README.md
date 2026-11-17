@@ -1,61 +1,50 @@
-# Norrköping Simulator — Kotlin/Ktor
+# Norrköping Simulator — Go
 
 A local city simulation for the Norrköping Simulator UI in `../norrkoping-simulator-ui`. Cars use a directed OpenStreetMap road graph. A fictional regional aircraft travels between Norrköpings flygplats (ESSP/Kungsängen) and the former Bråvalla F13 airfield.
 
-## Go port (branch `go-port`)
+## Start
 
-The server also exists in Go, with the same routes, bodies and behaviour. It needs Go 1.24 or later and
-nothing else: the map data is embedded in the binary.
+Needs Go 1.24 or later and nothing else: the map data is embedded in the binary.
 
 ```powershell
 cd C:\Users\amarg\dev\norrkoping-simulator-backend
 go run ./cmd/simulator                      # serve on 127.0.0.1:8080
 go build -o simulator.exe ./cmd/simulator   # one self-contained binary, about 56 MB
-go test ./...                               # about 5 seconds
 ```
 
-`HOST`, `PORT` and `ALLOWED_ORIGIN` work as in the Kotlin server.
+The server binds to 127.0.0.1:8080. Start the UI with `npm run dev` from the companion repository and open http://127.0.0.1:5173. Restart the server after updating code or the bundled transport data.
 
 | Path | Content |
 | --- | --- |
 | `cmd/simulator` | Start-up: environment, the two simulation loops, HTTP server, shutdown on Ctrl+C |
 | `internal/sim` | The simulation: road, rail and air traffic, terrain, the legacy drone world |
 | `internal/api` | Routes, strict JSON command bodies, the Origin and Content-Type guard, SSE streams |
-| `src/main/resources/embed.go` | Embeds the bundled map data where the Kotlin build also reads it |
-| `testdata/golden.json` | Reference traces written by the Kotlin implementation |
+| `src/main/resources` | The bundled map data, written by the UI repository's importers, and `embed.go` that embeds it |
+| `src/test/resources` | Control files written by the UI repository's tests |
+| `testdata/golden.json` | Frozen reference traces from the earlier Kotlin implementation |
 
-The Go port reproduces the Kotlin implementation's results, not just its interface.
-`testdata/golden.json` holds traces from Kotlin: random number sequences, city snapshots over 6 000
-simulated seconds, a drone scenario and the Step 6.1b bridge traffic trace (201 516 edge transitions).
-`go test` replays the same scenarios and compares every value. To regenerate the reference after a
-deliberate change to the Kotlin simulation:
+## Kotlin heritage
 
-```powershell
-$env:GOLDEN_DUMP = '1'; .\gradlew.bat test --tests '*GoldenDumpTest*'
-```
+The server was written in Kotlin/Ktor and ported to Go. The port reproduces the Kotlin implementation's
+results, not just its interface. `testdata/golden.json` holds traces written by Kotlin: random number
+sequences, city snapshots over 6 000 simulated seconds, a drone scenario and the Step 6.1b bridge
+traffic trace (201 516 edge transitions). `go test` replays the same scenarios and compares every value.
 
-`internal/sim/compat.go` holds what this depends on: Kotlin's random generator, Java's priority queue
-order and Java's number formatting. Three Kotlin test classes are not ported: `BusReachabilityTest`,
-`Step61bTrafficEvidenceTest` and `Step62RoutingAuditTest`.
+The reference is frozen. A deliberate change to the simulation will make `internal/sim/golden_test.go`
+fail; the reference then has to be regenerated from the Go implementation, or the comparison retired.
+The Kotlin sources, including `GoldenDumpTest.kt` that wrote the reference, are in commit `6636e14`.
 
-## Start (Kotlin)
-
-```powershell
-cd C:\Users\amarg\dev\norrkoping-simulator-backend
-.\dev.ps1
-```
-
-Requires JDK 21 or 25. `dev.ps1` discovers an installed JDK under `%USERPROFILE%\.jdks` when `JAVA_HOME` is unset. Gradle is included through its wrapper. The server binds to 127.0.0.1:8080. Start the UI with `npm run dev` from the companion repository and open http://127.0.0.1:5173.
-
-Restart Ktor after updating code or the bundled transport data.
+`internal/sim/compat.go` holds what the exact reproduction depends on: Kotlin's random generator, Java's
+priority queue order and Java's number formatting. Three Kotlin test classes were not ported:
+`BusReachabilityTest`, `Step61bTrafficEvidenceTest` and `Step62RoutingAuditTest`.
 
 ## CQRS and streaming
 
 ```text
-POST /api/simulator/* → CommandGuard / validation
-                     → CityCommand → CitySimulationService mutex
+POST /api/simulator/* → guard / strict decoding / validation
+                     → city command → CityService mutex
                      → RoadTraffic + RailTraffic + RegionalFlight write models
-                     → immutable CitySnapshot → StateFlow
+                     → immutable CitySnapshot → State
 GET world / SSE city ← read projection
 ```
 
@@ -121,11 +110,11 @@ The source query, timestamp, geographic bounds and scale are recorded in `meta`.
 | `ALLOWED_ORIGIN` | `http://localhost:5173` | Browser command origin; 127.0.0.1:5173 is also accepted |
 
 ```powershell
-.\dev.ps1 test
-.\dev.ps1 build
+go test ./...    # about 5 seconds
+go vet ./...
 ```
 
-Tests cover traffic counts/restrictions, red-light stopping and green release, continuous flight through all phases and both airports, pause, invalid commands without mutation, HTTP validation and origin checks. Legacy drone tests remain. Browser/SSE end-to-end tests are in the UI repo.
+Tests cover the Kotlin reference traces, traffic counts/restrictions, red-light stopping and green release, continuous flight through all phases and both airports, pause, invalid commands without mutation, HTTP validation and origin checks. Legacy drone tests remain. Browser/SSE end-to-end tests are in the UI repo.
 
 Local single-user application without authentication or persistence. For an isolated verification instance use `PORT=8081`, `ALLOWED_ORIGIN=http://127.0.0.1:5174`, and point the test UI's `API_TARGET` to port 8081.
 
