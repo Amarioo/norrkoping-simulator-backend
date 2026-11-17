@@ -1,7 +1,9 @@
-.gradle/
-.kotlin/
-build/
+/simulator
+/simulator.exe
 .idea/
 *.iml
 .env
 *.log
+.gradle/
+.kotlin/
+build/

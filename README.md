@@ -2,7 +2,43 @@
 
 A local city simulation for the Norrköping Simulator UI in `../norrkoping-simulator-ui`. Cars use a directed OpenStreetMap road graph. A fictional regional aircraft travels between Norrköpings flygplats (ESSP/Kungsängen) and the former Bråvalla F13 airfield.
 
-## Start
+## Go port (branch `go-port`)
+
+The server also exists in Go, with the same routes, bodies and behaviour. It needs Go 1.24 or later and
+nothing else: the map data is embedded in the binary.
+
+```powershell
+cd C:\Users\amarg\dev\norrkoping-simulator-backend
+go run ./cmd/simulator                      # serve on 127.0.0.1:8080
+go build -o simulator.exe ./cmd/simulator   # one self-contained binary, about 56 MB
+go test ./...                               # about 5 seconds
+```
+
+`HOST`, `PORT` and `ALLOWED_ORIGIN` work as in the Kotlin server.
+
+| Path | Content |
+| --- | --- |
+| `cmd/simulator` | Start-up: environment, the two simulation loops, HTTP server, shutdown on Ctrl+C |
+| `internal/sim` | The simulation: road, rail and air traffic, terrain, the legacy drone world |
+| `internal/api` | Routes, strict JSON command bodies, the Origin and Content-Type guard, SSE streams |
+| `src/main/resources/embed.go` | Embeds the bundled map data where the Kotlin build also reads it |
+| `testdata/golden.json` | Reference traces written by the Kotlin implementation |
+
+The Go port reproduces the Kotlin implementation's results, not just its interface.
+`testdata/golden.json` holds traces from Kotlin: random number sequences, city snapshots over 6 000
+simulated seconds, a drone scenario and the Step 6.1b bridge traffic trace (201 516 edge transitions).
+`go test` replays the same scenarios and compares every value. To regenerate the reference after a
+deliberate change to the Kotlin simulation:
+
+```powershell
+$env:GOLDEN_DUMP = '1'; .\gradlew.bat test --tests '*GoldenDumpTest*'
+```
+
+`internal/sim/compat.go` holds what this depends on: Kotlin's random generator, Java's priority queue
+order and Java's number formatting. Three Kotlin test classes are not ported: `BusReachabilityTest`,
+`Step61bTrafficEvidenceTest` and `Step62RoutingAuditTest`.
+
+## Start (Kotlin)
 
 ```powershell
 cd C:\Users\amarg\dev\norrkoping-simulator-backend
