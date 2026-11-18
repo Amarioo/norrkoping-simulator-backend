@@ -4,6 +4,8 @@
 //	HOST            address to bind, default 127.0.0.1
 //	PORT            port to bind, default 8080
 //	ALLOWED_ORIGIN  browser origin that may send commands, default http://localhost:5173
+//	MAX_CITIES      visitors' own cities at the same time (?session=<id>), default 20
+//	CITY_IDLE       seconds before an unused visitor city is removed, default 60
 package main
 
 import (
@@ -41,10 +43,13 @@ func main() {
 	go city.Run(ctx)
 	go drones.Run(ctx)
 
+	handler := api.NewServer(city, drones)
+	handler.Sessions = sim.NewCitySessions(ctx, positive("MAX_CITIES", 20), time.Duration(positive("CITY_IDLE", 60))*time.Second)
+
 	address := net.JoinHostPort(host, strconv.Itoa(port))
 	server := &http.Server{
 		Addr:              address,
-		Handler:           api.NewServer(city, drones).Handler(),
+		Handler:           handler.Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
 		// The streams send for as long as the client listens; requests still end with the server.
 		BaseContext: func(net.Listener) context.Context { return ctx },
@@ -59,4 +64,12 @@ func main() {
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}
+}
+
+// positive reads a whole number above zero from the environment.
+func positive(name string, fallback int) int {
+	if v, err := strconv.Atoi(os.Getenv(name)); err == nil && v > 0 {
+		return v
+	}
+	return fallback
 }

@@ -21,6 +21,9 @@ import (
 type Server struct {
 	City   *sim.CityService
 	Drones *sim.DroneService
+	// Sessions holds the visitors' own cities (?session=<id> on /api/simulator/*). Without it, and for
+	// requests without the parameter, everybody shares City.
+	Sessions *sim.CitySessions
 	// AllowedOrigin is the browser origin that may send commands, besides http://127.0.0.1:5173.
 	AllowedOrigin string
 }
@@ -113,6 +116,26 @@ func decode(r *http.Request, fields map[string]field) error {
 	return nil
 }
 
+const citiesFull = "Simulatorn har fullt med besökare just nu. Försök igen om en stund."
+
+// cityFor is the visitor's own city when the request names one with ?session=<id>, else the shared city.
+func (s *Server) cityFor(r *http.Request) (*sim.CityService, error) {
+	id := r.URL.Query().Get("session")
+	if id == "" || s.Sessions == nil {
+		return s.City, nil
+	}
+	return s.Sessions.City(id)
+}
+
+// refuse answers a query or stream whose city could not be had.
+func refuse(w http.ResponseWriter, err error) {
+	if errors.Is(err, sim.ErrCitiesFull) {
+		writeJSON(w, http.StatusServiceUnavailable, sim.APIError{Error: citiesFull})
+		return
+	}
+	writeJSON(w, http.StatusBadRequest, sim.APIError{Error: err.Error()})
+}
+
 // command runs a command handler and answers with its message, or with the reason it was rejected.
 func command(message string, run func(r *http.Request) error) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -123,6 +146,8 @@ func command(message string, run func(r *http.Request) error) http.HandlerFunc {
 			writeJSON(w, http.StatusBadRequest, sim.APIError{Error: "Malformed command body."})
 		case sim.IsValidation(err):
 			writeJSON(w, http.StatusBadRequest, sim.APIError{Error: err.Error()})
+		case errors.Is(err, sim.ErrCitiesFull):
+			writeJSON(w, http.StatusServiceUnavailable, sim.APIError{Error: citiesFull})
 		default:
 			log.Printf("%s %s failed: %v", r.Method, r.URL.Path, err)
 			writeJSON(w, http.StatusInternalServerError, sim.APIError{Error: "Internal error."})
@@ -170,11 +195,30 @@ func query[T any](state *sim.State[T]) http.HandlerFunc {
 
 // Handler returns the routes.
 func (s *Server) Handler() http.Handler {
-	city, drones := s.City, s.Drones
+	drones := s.Drones
 	api := http.NewServeMux()
 
-	api.Handle("GET /api/simulator/world", query(city.World))
-	api.Handle("GET /api/simulator/stream", stream(city.World, "city", func(v *sim.CitySnapshot) int64 { return v.Sequence }))
+	api.HandleFunc("GET /api/simulator/world", func(w http.ResponseWriter, r *http.Request) {
+		city, err := s.cityFor(r)
+		if err != nil {
+			refuse(w, err)
+			return
+		}
+		query(city.World)(w, r)
+	})
+	api.HandleFunc("GET /api/simulator/stream", func(w http.ResponseWriter, r *http.Request) {
+		city := s.City
+		if id := r.URL.Query().Get("session"); id != "" && s.Sessions != nil {
+			own, release, err := s.Sessions.Listen(id)
+			if err != nil {
+				refuse(w, err)
+				return
+			}
+			defer release()
+			city = own
+		}
+		stream(city.World, "city", func(v *sim.CitySnapshot) int64 { return v.Sequence })(w, r)
+	})
 	api.Handle("POST /api/simulator/settings", command("Trafiken uppdaterad.", func(r *http.Request) error {
 		v := sim.DefaultTrafficSettings()
 		var compact, estate, trucks, buses, trams, trains int32 = int32(v.Compact), int32(v.Estate), int32(v.Trucks), 0, 0, 0
@@ -186,6 +230,10 @@ func (s *Server) Handler() http.Handler {
 			return err
 		}
 		v.Compact, v.Estate, v.Trucks, v.Buses, v.Trams, v.Trains = int(compact), int(estate), int(trucks), int(buses), int(trams), int(trains)
+		city, err := s.cityFor(r)
+		if err != nil {
+			return err
+		}
 		return city.Execute(sim.ConfigureCity{Settings: v})
 	}))
 	api.Handle("POST /api/simulator/pause", command("Paus uppdaterad.", func(r *http.Request) error {
@@ -193,9 +241,17 @@ func (s *Server) Handler() http.Handler {
 		if err := decode(r, map[string]field{"paused": {target: &v.Paused, required: true}}); err != nil {
 			return err
 		}
+		city, err := s.cityFor(r)
+		if err != nil {
+			return err
+		}
 		return city.Execute(sim.PauseCity{Paused: v.Paused})
 	}))
-	api.Handle("POST /api/simulator/reset", command("Simuleringen återställd.", func(*http.Request) error {
+	api.Handle("POST /api/simulator/reset", command("Simuleringen återställd.", func(r *http.Request) error {
+		city, err := s.cityFor(r)
+		if err != nil {
+			return err
+		}
 		return city.Execute(sim.ResetCity{})
 	}))
 

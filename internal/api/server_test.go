@@ -2,6 +2,7 @@ package api
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"norrkoping-simulator/internal/sim"
 )
@@ -235,4 +237,105 @@ func TestStreamSendsTheLatestSnapshotAndThenEveryChange(t *testing.T) {
 	}
 	response.Body.Close()
 	io.Copy(io.Discard, response.Body)
+}
+
+func startWithSessions(t *testing.T, max int, idle time.Duration) (*httptest.Server, *sim.CitySessions) {
+	t.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	city, drones := services()
+	sessions := sim.NewCitySessions(ctx, max, idle)
+	server := httptest.NewServer((&Server{City: city, Drones: drones, Sessions: sessions, AllowedOrigin: "http://localhost:5173"}).Handler())
+	t.Cleanup(server.Close)
+	return server, sessions
+}
+
+func trucks(t *testing.T, server *httptest.Server, path string) (float64, bool) {
+	t.Helper()
+	status, world := get(t, server, path)
+	expectStatus(t, path, 200, status)
+	return world["settings"].(map[string]any)["trucks"].(float64), world["paused"].(bool)
+}
+
+func TestEachVisitorHasACityOfTheirOwn(t *testing.T) {
+	server, sessions := startWithSessions(t, 2, time.Hour)
+	sharedTrucks, sharedPaused := trucks(t, server, "/api/simulator/world")
+
+	status, _ := post(t, server, "/api/simulator/settings?session=visitor-a", jsonBody(`{"compact":5,"estate":4,"trucks":3,"flights":false,"timeScale":2}`))
+	expectStatus(t, "settings for a", 200, status)
+	status, _ = post(t, server, "/api/simulator/pause?session=visitor-a", jsonBody(`{"paused":true}`))
+	expectStatus(t, "pause for a", 200, status)
+
+	if n, paused := trucks(t, server, "/api/simulator/world?session=visitor-a"); n != 3 || !paused {
+		t.Fatalf("a: want 3 trucks and paused, got %v, %v", n, paused)
+	}
+	if n, paused := trucks(t, server, "/api/simulator/world?session=visitor-b"); n != 20 || paused {
+		t.Fatalf("b: want the start values (20 trucks, running), got %v, %v", n, paused)
+	}
+	if n, paused := trucks(t, server, "/api/simulator/world"); n != sharedTrucks || paused != sharedPaused {
+		t.Fatalf("shared city changed: %v, %v", n, paused)
+	}
+	if sessions.Count() != 2 {
+		t.Fatalf("want 2 visitor cities, got %d", sessions.Count())
+	}
+
+	status, full := get(t, server, "/api/simulator/world?session=visitor-c")
+	expectStatus(t, "third visitor of two", 503, status)
+	if full["error"] != citiesFull {
+		t.Fatalf("full: %v", full)
+	}
+	status, _ = post(t, server, "/api/simulator/reset?session=visitor-c", jsonBody("{}"))
+	expectStatus(t, "command from the third visitor", 503, status)
+	response, err := http.Get(server.URL + "/api/simulator/stream?session=visitor-c")
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	expectStatus(t, "stream for the third visitor", 503, response.StatusCode)
+
+	status, _ = get(t, server, "/api/simulator/world?session=a/b")
+	expectStatus(t, "malformed id", 400, status)
+	status, _ = get(t, server, "/api/simulator/world?session=short")
+	expectStatus(t, "short id", 400, status)
+}
+
+func TestAVisitorCityLivesWhileItIsListenedToAndIsThenRemoved(t *testing.T) {
+	server, sessions := startWithSessions(t, 1, 50*time.Millisecond)
+	response, err := http.Get(server.URL + "/api/simulator/stream?session=visitor-a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectStatus(t, "stream", 200, response.StatusCode)
+	reader := bufio.NewReader(response.Body)
+	sequences := []float64{}
+	for len(sequences) < 3 { // the city runs: the sequence grows
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatal(err)
+		}
+		if data, ok := strings.CutPrefix(line, "data: "); ok {
+			var snapshot map[string]any
+			if err := json.Unmarshal([]byte(data), &snapshot); err != nil {
+				t.Fatal(err)
+			}
+			sequences = append(sequences, snapshot["sequence"].(float64))
+		}
+	}
+	if !(sequences[0] < sequences[1] && sequences[1] < sequences[2]) {
+		t.Fatalf("sequences: %v", sequences)
+	}
+	time.Sleep(300 * time.Millisecond) // far past the idle time, but listened to
+	if sessions.Count() != 1 {
+		t.Fatalf("a listened city was removed")
+	}
+	response.Body.Close()
+	deadline := time.Now().Add(5 * time.Second)
+	for sessions.Count() != 0 {
+		if time.Now().After(deadline) {
+			t.Fatalf("the city was not removed after its listener left")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	status, _ := get(t, server, "/api/simulator/world?session=visitor-b")
+	expectStatus(t, "the place is free again", 200, status)
 }

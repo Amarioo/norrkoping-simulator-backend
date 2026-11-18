@@ -108,6 +108,8 @@ The source query, timestamp, geographic bounds and scale are recorded in `meta`.
 | `HOST` | `127.0.0.1` | Listen address |
 | `PORT` | `8080` | Listen port |
 | `ALLOWED_ORIGIN` | `http://localhost:5173` | Browser command origin; 127.0.0.1:5173 is also accepted |
+| `MAX_CITIES` | `20` | Visitors' own cities at the same time; the next visitor gets 503 |
+| `CITY_IDLE` | `60` | Seconds without a listener or command before a visitor's city is removed |
 
 ```powershell
 go test ./...    # about 5 seconds
@@ -116,7 +118,9 @@ go vet ./...
 
 Tests cover the Kotlin reference traces, traffic counts/restrictions, red-light stopping and green release, continuous flight through all phases and both airports, pause, invalid commands without mutation, HTTP validation and origin checks. Legacy drone tests remain. Browser/SSE end-to-end tests are in the UI repo.
 
-Local single-user application without authentication or persistence. For an isolated verification instance use `PORT=8081`, `ALLOWED_ORIGIN=http://127.0.0.1:5174`, and point the test UI's `API_TARGET` to port 8081.
+Every `/api/simulator/*` route takes an optional `?session=<id>` (8–64 characters of `A–Z a–z 0–9 _ -`): the request then uses a city of that visitor's own, created on first use and removed when idle. Without the parameter everybody shares one city.
+
+Local application without authentication or persistence. For an isolated verification instance use `PORT=8081`, `ALLOWED_ORIGIN=http://127.0.0.1:5174`, and point the test UI's `API_TARGET` to port 8081.
 
 ## Shared elevation contract
 
