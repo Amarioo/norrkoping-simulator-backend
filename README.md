@@ -107,7 +107,7 @@ The source query, timestamp, geographic bounds and scale are recorded in `meta`.
 | --- | --- | --- |
 | `HOST` | `127.0.0.1` | Listen address |
 | `PORT` | `8080` | Listen port |
-| `ALLOWED_ORIGIN` | `http://localhost:5173` | Browser command origin; 127.0.0.1:5173 is also accepted |
+| `ALLOWED_ORIGIN` | `http://localhost:5173` | Browser origins that may send commands and, from another domain, read answers and streams (CORS); several separated by commas. 127.0.0.1:5173 is also accepted |
 | `MAX_CITIES` | `20` | Visitors' own cities at the same time; the next visitor gets 503 |
 | `CITY_IDLE` | `60` | Seconds without a listener or command before a visitor's city is removed |
 
@@ -120,7 +120,9 @@ Tests cover the Kotlin reference traces, traffic counts/restrictions, red-light 
 
 Every `/api/simulator/*` route takes an optional `?session=<id>` (8–64 characters of `A–Z a–z 0–9 _ -`): the request then uses a city of that visitor's own, created on first use and removed when idle. Without the parameter everybody shares one city.
 
-Local application without authentication or persistence. For an isolated verification instance use `PORT=8081`, `ALLOWED_ORIGIN=http://127.0.0.1:5174`, and point the test UI's `API_TARGET` to port 8081.
+Container and cluster: `Dockerfile` builds one static binary (`HOST=0.0.0.0`); `.github/workflows/image.yml` publishes it to ghcr.io on every push to `main`; `deploy/k8s/simulator.yaml` is the k3s deployment (one replica, Traefik ingress, limits per address). The steps are in the UI repository, `docs/deploy/README.md`.
+
+Application without authentication or persistence. For an isolated verification instance use `PORT=8081`, `ALLOWED_ORIGIN=http://127.0.0.1:5174`, and point the test UI's `API_TARGET` to port 8081.
 
 ## Shared elevation contract
 

@@ -1,0 +1,9 @@
+.git
+.github
+.idea
+deploy
+testdata
+README.md
+simulator
+simulator.exe
+**/*_test.go

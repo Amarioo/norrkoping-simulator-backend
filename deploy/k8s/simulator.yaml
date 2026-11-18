@@ -1,0 +1,123 @@
+# Norrköping Simulator backend for k3s (Traefik ingress, cert-manager for HTTPS).
+# Replace before applying:
+#   api.example.com        the backend's public host name
+#   https://ui.example.com the UI's address on Vercel, without a trailing slash
+#   letsencrypt            the name of the cluster's cert-manager ClusterIssuer
+# Apply with: kubectl apply -f deploy/k8s/simulator.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: norrkoping-simulator
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: simulator
+  namespace: norrkoping-simulator
+spec:
+  # The cities live in the process's memory: exactly one copy, and the old one stops before the new starts.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: simulator
+  template:
+    metadata:
+      labels:
+        app: simulator
+    spec:
+      containers:
+        - name: simulator
+          image: ghcr.io/amarioo/norrkoping-simulator-backend:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: ALLOWED_ORIGIN
+              value: https://ui.example.com
+            - name: MAX_CITIES
+              value: "20"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop: [ALL]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: simulator
+  namespace: norrkoping-simulator
+spec:
+  selector:
+    app: simulator
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+# At most 20 requests a second from one address (bursts of 40), and at most 6 at the same time; a
+# stream is one request for as long as the page is open.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: rate-limit
+  namespace: norrkoping-simulator
+spec:
+  rateLimit:
+    average: 20
+    burst: 40
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: in-flight
+  namespace: norrkoping-simulator
+spec:
+  inFlightReq:
+    amount: 6
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: simulator
+  namespace: norrkoping-simulator
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: norrkoping-simulator-rate-limit@kubernetescrd,norrkoping-simulator-in-flight@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts: [api.example.com]
+      secretName: simulator-tls
+  rules:
+    - host: api.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: simulator
+                port:
+                  name: http

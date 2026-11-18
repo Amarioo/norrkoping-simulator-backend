@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"norrkoping-simulator/internal/sim"
 )
@@ -24,7 +25,8 @@ type Server struct {
 	// Sessions holds the visitors' own cities (?session=<id> on /api/simulator/*). Without it, and for
 	// requests without the parameter, everybody shares City.
 	Sessions *sim.CitySessions
-	// AllowedOrigin is the browser origin that may send commands, besides http://127.0.0.1:5173.
+	// AllowedOrigin is the browser origin that may send commands and, from another domain, read the
+	// answers and streams (CORS), besides http://127.0.0.1:5173. Several origins are separated by commas.
 	AllowedOrigin string
 }
 
@@ -55,12 +57,44 @@ func writeRaw(w http.ResponseWriter, status int, raw []byte) {
 	w.Write(raw)
 }
 
-// guard admits same-origin browser commands; CLI clients without Origin are supported on the loopback
-// server. Commands must be JSON, which keeps HTML forms out.
+// allowed reports whether a browser page from origin may use the API.
+func (s *Server) allowed(origin string) bool {
+	if origin == "http://127.0.0.1:5173" {
+		return true
+	}
+	for candidate := range strings.SplitSeq(s.AllowedOrigin, ",") {
+		if strings.TrimSuffix(strings.TrimSpace(candidate), "/") == origin {
+			return true
+		}
+	}
+	return false
+}
+
+// guard admits browser commands from the UI's origins; clients without Origin (command line, the UI's
+// own proxy) are supported. Commands must be JSON, which keeps HTML forms out. A UI served from another
+// domain than the API (ALLOWED_ORIGIN) is told that it may read the answers, and its preflight
+// requests are answered here.
 func (s *Server) guard(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origin := r.Header.Get("Origin")
+		allowed := origin != "" && s.allowed(origin)
+		w.Header().Add("Vary", "Origin")
+		if allowed {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		}
+		if r.Method == http.MethodOptions {
+			if !allowed {
+				writeJSON(w, http.StatusForbidden, sim.APIError{Error: "Origin is not allowed."})
+				return
+			}
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+			w.Header().Set("Access-Control-Max-Age", "600")
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
 		if r.Method == http.MethodPost {
-			if origin := r.Header.Get("Origin"); origin != "" && origin != s.AllowedOrigin && origin != "http://127.0.0.1:5173" {
+			if origin != "" && !allowed {
 				writeJSON(w, http.StatusForbidden, sim.APIError{Error: "Origin is not allowed."})
 				return
 			}

@@ -339,3 +339,70 @@ func TestAVisitorCityLivesWhileItIsListenedToAndIsThenRemoved(t *testing.T) {
 	status, _ := get(t, server, "/api/simulator/world?session=visitor-b")
 	expectStatus(t, "the place is free again", 200, status)
 }
+
+func TestAUIOnAnotherDomainMayReadAndCommand(t *testing.T) {
+	city, drones := services()
+	server := httptest.NewServer((&Server{City: city, Drones: drones, AllowedOrigin: "https://sim.example, https://other.example/"}).Handler())
+	t.Cleanup(server.Close)
+	do := func(method, path, origin string, headers map[string]string, body string) *http.Response {
+		t.Helper()
+		req, err := http.NewRequest(method, server.URL+path, strings.NewReader(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if origin != "" {
+			req.Header.Set("Origin", origin)
+		}
+		for name, value := range headers {
+			req.Header.Set(name, value)
+		}
+		response, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		response.Body.Close()
+		return response
+	}
+	const allow = "Access-Control-Allow-Origin"
+	for _, origin := range []string{"https://sim.example", "https://other.example", "http://127.0.0.1:5173"} {
+		read := do("GET", "/api/simulator/world", origin, nil, "")
+		expectStatus(t, "read from "+origin, 200, read.StatusCode)
+		if got := read.Header.Get(allow); got != origin {
+			t.Fatalf("read from %s: %s = %q", origin, allow, got)
+		}
+		preflight := do("OPTIONS", "/api/simulator/pause", origin, map[string]string{"Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "content-type"}, "")
+		expectStatus(t, "preflight from "+origin, 204, preflight.StatusCode)
+		if preflight.Header.Get(allow) != origin || preflight.Header.Get("Access-Control-Allow-Methods") != "GET, POST" ||
+			preflight.Header.Get("Access-Control-Allow-Headers") != "Content-Type" {
+			t.Fatalf("preflight from %s: %v", origin, preflight.Header)
+		}
+		command := do("POST", "/api/simulator/pause", origin, map[string]string{"Content-Type": "application/json"}, `{"paused":false}`)
+		expectStatus(t, "command from "+origin, 200, command.StatusCode)
+		if command.Header.Get(allow) != origin {
+			t.Fatalf("command from %s: no %s", origin, allow)
+		}
+	}
+	stream, err := http.NewRequest("GET", server.URL+"/api/simulator/stream", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stream.Header.Set("Origin", "https://sim.example")
+	response, err := http.DefaultClient.Do(stream)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.Header.Get(allow) != "https://sim.example" {
+		t.Fatalf("stream: no %s", allow)
+	}
+
+	stranger := do("GET", "/api/simulator/world", "https://unrelated.example", nil, "")
+	if got := stranger.Header.Get(allow); got != "" {
+		t.Fatalf("a stranger may read: %q", got)
+	}
+	expectStatus(t, "preflight from a stranger", 403, do("OPTIONS", "/api/simulator/pause", "https://unrelated.example", nil, "").StatusCode)
+	expectStatus(t, "command from a stranger", 403, do("POST", "/api/simulator/pause", "https://unrelated.example", map[string]string{"Content-Type": "application/json"}, `{"paused":false}`).StatusCode)
+	if got := do("GET", "/api/simulator/world", "", nil, "").Header.Get(allow); got != "" {
+		t.Fatalf("no origin: %q", got)
+	}
+}
