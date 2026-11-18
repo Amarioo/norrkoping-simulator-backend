@@ -2,6 +2,7 @@ package api
 
 import (
 	"bufio"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"io"
@@ -404,5 +405,44 @@ func TestAUIOnAnotherDomainMayReadAndCommand(t *testing.T) {
 	expectStatus(t, "command from a stranger", 403, do("POST", "/api/simulator/pause", "https://unrelated.example", map[string]string{"Content-Type": "application/json"}, `{"paused":false}`).StatusCode)
 	if got := do("GET", "/api/simulator/world", "", nil, "").Header.Get(allow); got != "" {
 		t.Fatalf("no origin: %q", got)
+	}
+}
+
+func TestTheStreamIsCompressedForClientsThatAcceptIt(t *testing.T) {
+	server := start(t)
+	open := func(encoding string) (*http.Response, string) {
+		t.Helper()
+		req, err := http.NewRequest("GET", server.URL+"/api/simulator/stream", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if encoding != "" {
+			req.Header.Set("Accept-Encoding", encoding) // set by hand: the client does not decompress
+		}
+		response, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { response.Body.Close() })
+		var body io.Reader = response.Body
+		if response.Header.Get("Content-Encoding") == "gzip" {
+			if body, err = gzip.NewReader(response.Body); err != nil {
+				t.Fatal(err)
+			}
+		}
+		line, err := bufio.NewReader(body).ReadString('\n') // the first event arrives without waiting for more
+		if err != nil {
+			t.Fatal(err)
+		}
+		return response, strings.TrimRight(line, "\r\n")
+	}
+	if response, line := open("gzip, deflate, br"); response.Header.Get("Content-Encoding") != "gzip" || line != "event: city" {
+		t.Fatalf("browser: encoding %q, first line %q", response.Header.Get("Content-Encoding"), line)
+	}
+	if response, line := open("identity"); response.Header.Get("Content-Encoding") != "" || line != "event: city" {
+		t.Fatalf("plain: encoding %q, first line %q", response.Header.Get("Content-Encoding"), line)
+	}
+	if response, line := open(""); !response.Uncompressed || line != "event: city" {
+		t.Fatalf("Go client: uncompressed %v, first line %q", response.Uncompressed, line)
 	}
 }

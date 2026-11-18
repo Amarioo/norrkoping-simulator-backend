@@ -4,6 +4,7 @@ package api
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -203,12 +204,28 @@ func stream[T any](state *sim.State[T], event string, sequence func(*T) int64) h
 		header.Set("Cache-Control", "no-store")
 		header.Set("Connection", "keep-alive")
 		header.Set("X-Accel-Buffering", "no")
+		header.Add("Vary", "Accept-Encoding")
+		// The snapshots are large and alike (the start traffic is about 55 kB, ten times a second), so
+		// a client that accepts gzip gets the stream compressed, to about a quarter.
+		var out io.Writer = w
+		var compressed *gzip.Writer
+		if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			header.Set("Content-Encoding", "gzip")
+			compressed, _ = gzip.NewWriterLevel(w, gzip.BestSpeed)
+			defer compressed.Close()
+			out = compressed
+		}
 		w.WriteHeader(http.StatusOK)
 		flusher.Flush()
 		for {
 			value, encoded, changed := state.WatchJSON()
-			if _, err := fmt.Fprintf(w, "event: %s\r\ndata: %s\r\nid: %d\r\nretry: 1500\r\n\r\n", event, encoded, sequence(value)); err != nil {
+			if _, err := fmt.Fprintf(out, "event: %s\r\ndata: %s\r\nid: %d\r\nretry: 1500\r\n\r\n", event, encoded, sequence(value)); err != nil {
 				return
+			}
+			if compressed != nil {
+				if err := compressed.Flush(); err != nil {
+					return
+				}
 			}
 			flusher.Flush()
 			select {

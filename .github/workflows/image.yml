@@ -1,6 +1,6 @@
 name: Backend image
 # Builds the container image on every push to main and publishes it to GitHub's registry; the cluster
-# pulls ghcr.io/<owner>/norrkoping-simulator-backend:latest (deploy/k8s/simulator.yaml).
+# runs ghcr.io/<owner>/norrkoping-simulator-backend:sha-<commit> (deploy/k8s/simulator.yaml).
 on:
   push:
     branches: [main]
@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -23,7 +24,8 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             ${{ steps.name.outputs.image }}:latest
-            ${{ steps.name.outputs.image }}:${{ github.sha }}
+            ${{ steps.name.outputs.image }}:sha-${{ github.sha }}

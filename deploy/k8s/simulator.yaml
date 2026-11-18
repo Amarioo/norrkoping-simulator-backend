@@ -1,9 +1,10 @@
-# Norrköping Simulator backend for k3s (Traefik ingress, cert-manager for HTTPS).
-# Replace before applying:
-#   api.example.com        the backend's public host name
-#   https://ui.example.com the UI's address on Vercel, without a trailing slash
-#   letsencrypt            the name of the cluster's cert-manager ClusterIssuer
-# Apply with: kubectl apply -f deploy/k8s/simulator.yaml
+# Norrköping Simulator backend in the k3s cluster, set up like the Airplane Mode backend: Traefik
+# ingress, HTTPS from cert-manager (letsencrypt-prod), a nip.io name on the cluster's public address.
+#   https://api-norrkoping-simulator.213-66-61-225.nip.io/health
+# Apply with: sudo k3s kubectl apply -f deploy/k8s/simulator.yaml
+# then run a published build:
+#   sudo k3s kubectl -n norrkoping-simulator set image deployment/simulator \
+#     simulator=ghcr.io/amarioo/norrkoping-simulator-backend:sha-<commit>
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -30,15 +31,20 @@ spec:
       containers:
         - name: simulator
           image: ghcr.io/amarioo/norrkoping-simulator-backend:latest
-          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 8080
           env:
+            # The UI's address on Vercel (several separated by commas, no trailing slash).
             - name: ALLOWED_ORIGIN
-              value: https://ui.example.com
+              value: https://norrkoping-simulator-ui.vercel.app
+            # Each visitor's stream is about 1 Mbit/s compressed with the start traffic and up to
+            # 5–6 Mbit/s with the heaviest; the limit keeps the home connection and the nodes free.
             - name: MAX_CITIES
-              value: "20"
+              value: "8"
+            # The processor limit below is two cores; without this Go would start a thread per core.
+            - name: GOMAXPROCS
+              value: "2"
           readinessProbe:
             httpGet:
               path: /health
@@ -54,6 +60,7 @@ spec:
               cpu: 100m
               memory: 128Mi
             limits:
+              cpu: "2"
               memory: 512Mi
           securityContext:
             allowPrivilegeEscalation: false
@@ -75,47 +82,31 @@ spec:
       port: 80
       targetPort: http
 ---
-# At most 20 requests a second from one address (bursts of 40), and at most 6 at the same time; a
-# stream is one request for as long as the page is open.
-apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata:
-  name: rate-limit
-  namespace: norrkoping-simulator
-spec:
-  rateLimit:
-    average: 20
-    burst: 40
----
-apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata:
-  name: in-flight
-  namespace: norrkoping-simulator
-spec:
-  inFlightReq:
-    amount: 6
----
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: simulator
   namespace: norrkoping-simulator
   annotations:
-    cert-manager.io/cluster-issuer: letsencrypt
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: norrkoping-simulator-rate-limit@kubernetescrd,norrkoping-simulator-in-flight@kubernetescrd
+    cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
   ingressClassName: traefik
   tls:
-    - hosts: [api.example.com]
+    - hosts: [api-norrkoping-simulator.213-66-61-225.nip.io]
       secretName: simulator-tls
   rules:
-    - host: api.example.com
+    - host: api-norrkoping-simulator.213-66-61-225.nip.io
       http:
         paths:
-          - path: /
+          - path: /api
             pathType: Prefix
+            backend:
+              service:
+                name: simulator
+                port:
+                  name: http
+          - path: /health
+            pathType: Exact
             backend:
               service:
                 name: simulator
