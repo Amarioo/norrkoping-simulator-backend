@@ -91,7 +91,14 @@ type TransitRoute struct {
 	Destinations []TransitStop `json:"destinations"`
 }
 
+// NetworkMeta is what the simulation reads of the importer's notes on the map.
+type NetworkMeta struct {
+	// Clip is the outline of the mapped area in scene coordinates (x, z), closed.
+	Clip [][]float64 `json:"clip"`
+}
+
 type TransportNetwork struct {
+	Meta          NetworkMeta    `json:"meta"`
 	Nodes         []RoadNode     `json:"nodes"`
 	Edges         []RoadEdge     `json:"edges"`
 	Airports      []Airport      `json:"airports"`

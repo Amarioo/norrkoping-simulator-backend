@@ -40,7 +40,7 @@ type CityService struct {
 
 // NewCityService starts with the default traffic on the bundled map.
 func NewCityService() *CityService {
-	s := &CityService{traffic: NewBundledRoadTraffic(), flight: NewBundledRegionalFlight(), air: NewBundledAirTraffic(0), rail: NewBundledRailTraffic(),
+	s := &CityService{traffic: NewBundledRoadTraffic(), flight: NewBundledRegionalFlight(), air: NewSeededAirTraffic(0, airSeed()), rail: NewBundledRailTraffic(),
 		settings: DefaultTrafficSettings(), revision: BundledTerrain().Data.Revision, World: newState[CitySnapshot](nil)}
 	s.settings.Buses, s.settings.Trams, s.settings.Trains, s.settings.Planes = 12, 8, 2, 3
 	if err := s.configure(s.settings); err != nil {
@@ -61,6 +61,9 @@ func (s *CityService) configure(settings TrafficSettings) error {
 	s.air.SetCount(settings.aircraft())
 	return nil
 }
+
+// airSeed gives every city, and every reset of one, its own aircraft types and routes.
+func airSeed() uint64 { return uint64(time.Now().UnixNano()) }
 
 // aircraft is the number flown by AirTraffic; the legacy shuttle is not among them.
 func (v TrafficSettings) aircraft() int {
@@ -129,7 +132,7 @@ func (s *CityService) Execute(command CityCommand) error {
 		}
 	case ResetCity:
 		s.traffic, s.flight, s.rail = NewBundledRoadTraffic(), NewBundledRegionalFlight(), NewBundledRailTraffic()
-		s.air = NewBundledAirTraffic(0)
+		s.air = NewSeededAirTraffic(0, airSeed())
 		if err := s.configure(s.settings); err != nil {
 			return err
 		}

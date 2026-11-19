@@ -87,7 +87,7 @@ The map importer retains tunnel-tagged road underpasses, including Ståthögavä
 
 ## Air traffic
 
-`internal/sim/airtraffic.go` flies one to six procedural twin-engine turboprops (NK-01 … NK-06) ESSP ↔ F13;
+`internal/sim/airtraffic.go` flies one to six aircraft (NK-01 … NK-06) ESSP ↔ F13;
 a new city starts with three. Each airport has one runway, used in one direction, and a one-way loop of mapped
 taxiways at its take-off end (OpenStreetMap ways 101516378 at ESSP; 104336417 and 104336403 at F13, chosen
 because they keep clear of the mapped buildings). A landed aircraft turns on the runway, taxis back to the
@@ -102,14 +102,28 @@ loop, goes round it and queues behind the hold line; the first in the queue line
 - **Timetable:** with five or six aircraft, departures leave in slots, one per 176 s from each airport,
   placed so that the two runways stay in step. Without it six aircraft completed fewer flights than five.
   Up to four aircraft leave as soon as they may.
-- **Levels:** flights from ESSP cruise at 12 units (300 m), flights from F13 at 8 (200 m): the two tracks
-  cross west of ESSP. A flight is a turn, a straight and a turn onto a 5° approach from 6 units (150 m).
+- **Levels:** flights from ESSP cruise at 12 units (300 m), flights from F13 at 8 (200 m), because the
+  tracks of the two directions cross. Every flight ends with a 5° approach from 6 units (150 m).
+- **Routes:** three per direction (`airVias`): "över staden", "norr om staden" and "söder om staden". One
+  is drawn at random when a flight is cleared, and its name is sent as `route`. A route is turns of 500 m
+  radius and straights through its points. All routes of a direction take the same time: a longer one is
+  flown faster (2.55 to 3.3 units/s), so the runway rules and the timetable need not know the route.
+- **Inside the map:** the network's `meta.clip` is the outline of the mapped area. Every route, climb,
+  approach and holding circle is checked against it when the traffic is created, with a margin of 2 units
+  (50 m); a route that left the map would be an error, not a flight.
+- **Types:** each aircraft is of a type drawn at random when it appears (`airKinds`), sent as `type`:
+  `TP` (the unnamed turboprop), `A20N`, `A21N`, `B38M`. The type decides nothing but the picture; the
+  queue leaves 60 m between noses for the longest, and at F13 the path bends up to 8 m off the mapped centre
+  line beside two buildings so that the widest wing passes (`airObstacles`).
+- **Seed:** types and routes come from a seed. A city draws a new one from the clock when it is created or
+  reset; the tests pass their own.
 - **Changing the number:** the highest numbers leave at once; new aircraft appear at the back of the shorter
   queue.
 
 Every speed, time, distance and level is an estimate chosen for the 1:25 scene; the constants at the top of
 the file say what each stands for. `go test` runs every fleet size for six simulated hours and checks
-separation, runway use and that nobody waits for ever.
+separation, runway use, that nobody waits for ever, that no aircraft ever leaves the map and that every
+route is flown.
 
 ### The single legacy shuttle
 

@@ -24,11 +24,14 @@ type airWatch struct {
 	longestWait            float64
 	waiting                map[string]float64
 	checkedFinals, airtime float64
+	routes                 map[string]bool // "origin: route" of every flight seen in the air
+	nearestEdge            float64         // least distance of any aircraft to the edge of the map
 }
 
 func watchAir(t *testing.T, a *AirTraffic, label string) *airWatch {
 	return &airWatch{t: t, a: a, label: label, previous: map[string]AircraftView{}, phases: map[string]float64{},
-		landings: map[string]int{}, closest: math.Inf(1), closestInAir: math.Inf(1), waiting: map[string]float64{}}
+		landings: map[string]int{}, closest: math.Inf(1), closestInAir: math.Inf(1), waiting: map[string]float64{},
+		routes: map[string]bool{}, nearestEdge: math.Inf(1)}
 }
 
 func cruising(phase string) bool { return phase == "CLIMB" || phase == "CRUISE" || phase == "HOLDING" }
@@ -66,6 +69,27 @@ func (w *airWatch) tick(dt float64) {
 		}
 		if v.Pos[1] < .099 || !isFinite(v.Heading) || !isFinite(v.Pitch) || !isFinite(v.Bank) || v.Speed > 3.5*25*3.6 {
 			t.Fatalf("%s: %s at height %v, speed %v in %s", w.label, v.ID, v.Pos[1], v.Speed, v.Phase)
+		}
+		// Never outside the mapped area, in any phase.
+		if !a.insideMap(pos, 0) {
+			t.Fatalf("%s: %s is outside the map at %v in %s", w.label, v.ID, v.Pos, v.Phase)
+		}
+		for i := range a.clip {
+			u, e := a.clip[i], a.clip[(i+1)%len(a.clip)].Sub(a.clip[i])
+			share := clamp(flat(pos).Sub(u).Dot(e)/math.Max(e.Dot(e), 1e-12), 0, 1)
+			w.nearestEdge = math.Min(w.nearestEdge, flat(pos).Sub(u.Add(e.Mul(share))).Length())
+		}
+		known := false
+		for _, k := range airKinds {
+			known = known || k.ID == v.Type
+		}
+		// A route is named from the clearance until the aircraft has left the runway it landed on.
+		flying := cruising(v.Phase) || v.Phase == "APPROACH" || v.Phase == "TAKEOFF" || v.Phase == "TAXI_OUT" || v.Phase == "LANDING"
+		if !known || (flying && v.Route == "") || ((v.Phase == "PARKED" || v.Phase == "QUEUE") && v.Route != "") {
+			t.Fatalf("%s: %s of type %q on route %q in %s", w.label, v.ID, v.Type, v.Route, v.Phase)
+		}
+		if cruising(v.Phase) {
+			w.routes[v.Origin+": "+v.Route] = true
 		}
 		if v.Gear != !cruising(v.Phase) {
 			t.Fatalf("%s: %s has gear %v in %s", w.label, v.ID, v.Gear, v.Phase)
@@ -149,7 +173,12 @@ func TestAirTrafficUsesTheMappedLoopsAndSeparatedLevels(t *testing.T) {
 					nearest = math.Min(nearest, p.Sub(way[i-1].Add(seg.Mul(share))).Length())
 				}
 			}
-			if nearest > .2 {
+			// Beside a building the path bends away from it (airObstacles), by at most 10 m.
+			limit := .2
+			if len(airObstacles[s.airport.ID]) > 0 {
+				limit = .4
+			}
+			if nearest > limit {
 				t.Fatalf("%s: the path is %.2f units from the mapped loop at %.1f", s.airport.ID, nearest, at)
 			}
 		}
@@ -165,19 +194,83 @@ func TestAirTrafficUsesTheMappedLoopsAndSeparatedLevels(t *testing.T) {
 		}
 		leg := a.legs[n]
 		// The approach is longer than the time the runway is kept free before a touchdown.
-		if leg.climbTime < 15 || leg.approachTime <= airFinalGap || leg.cruiseCum[len(leg.cruiseCum)-1] < 100 {
-			t.Fatalf("%s: climb %v s, approach %v s, cruise %v", s.airport.ID, leg.climbTime, leg.approachTime, leg.cruiseCum[len(leg.cruiseCum)-1])
+		if leg.climbTime < 15 || leg.approachTime <= airFinalGap || leg.cruiseTime < 60 {
+			t.Fatalf("%s: climb %v s, approach %v s, cruise %v s", s.airport.ID, leg.climbTime, leg.approachTime, leg.cruiseTime)
+		}
+		for _, o := range airObstacles[s.airport.ID] {
+			for at := 0.0; at <= s.sEnd; at += .05 {
+				if p, _ := along(s.path, s.cum, at); p.Sub(Vec3{o[0], 0, o[1]}).Length() < airWingRoom-.03 {
+					t.Fatalf("%s: the path passes %.2f units from the building at %v", s.airport.ID, p.Sub(Vec3{o[0], 0, o[1]}).Length(), o)
+				}
+			}
 		}
 	}
-	// The two directions never come nearer than their levels are apart.
-	nearest := math.Inf(1)
-	for _, p := range a.legs[0].cruise {
-		for _, q := range a.legs[1].cruise {
-			nearest = math.Min(nearest, p.Sub(q).Length())
-		}
+	levels := math.Abs(a.strips[0].level - a.strips[1].level)
+	if levels < 4 {
+		t.Fatalf("levels %v apart", levels)
 	}
-	if levels := math.Abs(a.strips[0].level - a.strips[1].level); levels < 4 || nearest < levels-1e-6 {
-		t.Fatalf("levels %v apart, cruise tracks %v apart", levels, nearest)
+	for n, leg := range a.legs {
+		other := a.legs[1-n]
+		if len(leg.routes) < 3 {
+			t.Fatalf("%d routes from %s", len(leg.routes), leg.from.airport.ID)
+		}
+		// Where the other direction climbs out and comes in.
+		var climb, approach []Vec3
+		for i := 0; i <= 40; i++ {
+			share := float64(i) / 40
+			at := other.from.at(other.from.launch + airLiftoffSpeed*other.climbTime*share)
+			at.Y = other.launch.Y + (other.from.level-other.launch.Y)*share*share*(3-2*share)
+			climb = append(climb, at)
+			approach = append(approach, other.fix.Add(other.touch.Sub(other.fix).Mul(share)))
+		}
+		names := map[string]bool{}
+		for _, r := range leg.routes {
+			names[r.name] = true
+			length := r.cum[len(r.cum)-1]
+			if math.Abs(length/r.speed-leg.cruiseTime) > 1e-9 || length < 100 {
+				t.Fatalf("%s %q: %v units at %v units/s, cruise time %v", leg.from.airport.ID, r.name, length, r.speed, leg.cruiseTime)
+			}
+			for i, p := range r.cruise {
+				// Inside the map, at the cruise level or on the descent, and turning no tighter than the radius.
+				if !a.insideMap(p, airMapMargin) || p.Y > leg.from.level+1e-9 || p.Y < airApproachLevel-1e-9 {
+					t.Fatalf("%s %q at %v", leg.from.airport.ID, r.name, p)
+				}
+				if i > 1 {
+					d1, d2 := flat(p.Sub(r.cruise[i-1])), flat(r.cruise[i-1].Sub(r.cruise[i-2]))
+					turn := math.Acos(clamp(d1.Normalized().Dot(d2.Normalized()), -1, 1))
+					if turn*airTurnRadius > 1.05*math.Max(d1.Length(), d2.Length())+1e-6 {
+						t.Fatalf("%s %q turns %v rad in %v units at %v", leg.from.airport.ID, r.name, turn, d1.Length(), p)
+					}
+				}
+			}
+			// The two directions never come nearer than their levels are apart, whichever routes they take;
+			// nor does a cruising aircraft come that near the other direction's climb or approach.
+			nearest := math.Inf(1)
+			for _, p := range r.cruise {
+				for _, o := range other.routes {
+					for _, q := range o.cruise {
+						nearest = math.Min(nearest, p.Sub(q).Length())
+					}
+				}
+				for _, q := range append(climb, approach...) {
+					nearest = math.Min(nearest, p.Sub(q).Length())
+				}
+			}
+			if nearest < levels-1e-6 {
+				t.Fatalf("%s %q comes %v units from the other direction", leg.from.airport.ID, r.name, nearest)
+			}
+			t.Logf("%s %q: %.0f units at %.2f units/s, nearest the other direction %.1f units", leg.from.airport.ID, r.name, length, r.speed, nearest)
+		}
+		if len(names) != len(leg.routes) {
+			t.Fatalf("route names %v", names)
+		}
+		// The holding circle too.
+		for i := 0; i < 64; i++ {
+			angle := 2 * math.Pi * float64(i) / 64
+			if p := leg.orbitCentre.Add(Vec3{math.Cos(angle), 0, math.Sin(angle)}.Mul(airHoldRadius)); !a.insideMap(p, airMapMargin) {
+				t.Fatalf("the holding circle for %s leaves the map at %v", leg.to.airport.ID, p)
+			}
+		}
 	}
 	if a.rounds < 2 || a.period < a.legs[0].separation || a.period < a.legs[1].separation {
 		t.Fatalf("timetable of %d rounds, period %v", a.rounds, a.period)
@@ -220,14 +313,23 @@ func TestAirTrafficKeepsEveryFleetApartAndMoving(t *testing.T) {
 					t.Fatalf("%s: %s landed %d times in %d h (%v)", label, v.ID, w.landings[v.ID], hours, w.landings)
 				}
 			}
-			if n > 1 && (w.closest < 1.5 || w.closestInAir < 4) {
+			// On the ground never nearer than 2 units (50 m; two of the widest wings side by side need 36 m): the
+			// queue keeps airQueueGap, and the two arms of a loop are a little over 2 units apart at the runway.
+			if n > 1 && (w.closest < 2 || w.closestInAir < 4) {
 				t.Fatalf("%s: %.2f units apart (%s), %.2f in the air", label, w.closest, w.closestPair, w.closestInAir)
+			}
+			// With three aircraft or more, six hours see every route flown in both directions.
+			if want := len(a.legs[0].routes) + len(a.legs[1].routes); n >= 3 && len(w.routes) != want {
+				t.Fatalf("%s: routes flown %v, want %d", label, w.routes, want)
+			}
+			if w.nearestEdge < airMapMargin-.01 {
+				t.Fatalf("%s: an aircraft came %.2f units from the edge of the map", label, w.nearestEdge)
 			}
 			if w.longestWait > 900 || w.checkedFinals == 0 {
 				t.Fatalf("%s: an aircraft waited %.0f s; finals checked for %.0f s", label, w.longestWait, w.checkedFinals)
 			}
-			t.Logf("%s: %d flights, %.2f in the air on average, closest %.2f (in the air %.2f), longest wait %.0f s",
-				label, a.Completed, w.airtime/(hours*3600), w.closest, w.closestInAir, w.longestWait)
+			t.Logf("%s: %d flights, %.2f in the air on average, closest %.2f (in the air %.2f), longest wait %.0f s, nearest the edge of the map %.1f, routes flown %d",
+				label, a.Completed, w.airtime/(hours*3600), w.closest, w.closestInAir, w.longestWait, w.nearestEdge, len(w.routes))
 		}
 	}
 	if !testing.Short() {
@@ -247,6 +349,55 @@ func TestAirTrafficIsDeterministic(t *testing.T) {
 	}
 	if !reflect.DeepEqual(a.Views(), b.Views()) || a.Completed != b.Completed || a.Completed == 0 {
 		t.Fatalf("two runs differ: %d and %d flights", a.Completed, b.Completed)
+	}
+}
+
+func TestAirTrafficDrawsTypesAndRoutesFromItsSeed(t *testing.T) {
+	types := func(seed uint64) string {
+		a := NewSeededAirTraffic(MaxAircraft, seed)
+		list := ""
+		for _, v := range a.Views() {
+			list += v.Type + " "
+		}
+		return list
+	}
+	seen, fleets := map[string]bool{}, map[string]bool{}
+	for seed := uint64(1); seed <= 40; seed++ {
+		list := types(seed)
+		if list != types(seed) {
+			t.Fatalf("seed %d gives two fleets", seed)
+		}
+		fleets[list] = true
+		for _, id := range strings.Fields(list) {
+			seen[id] = true
+		}
+	}
+	if len(seen) != len(airKinds) || len(fleets) < 30 {
+		t.Fatalf("40 seeds give the types %v in %d different fleets", seen, len(fleets))
+	}
+	// The type stays with the aircraft; the route is drawn again for every flight.
+	a := NewSeededAirTraffic(2, 7)
+	kinds := types(7)
+	routes := map[string]bool{}
+	for a.clock < 4*3600 {
+		a.Tick(.05)
+		for i, v := range a.Views() {
+			if v.Type != strings.Fields(kinds)[i] {
+				t.Fatalf("%s changed type to %s", v.ID, v.Type)
+			}
+			if i == 0 && v.Route != "" {
+				routes[v.Origin+": "+v.Route] = true
+			}
+		}
+	}
+	if len(routes) < 5 {
+		t.Fatalf("NK-01 flew only %v in four hours", routes)
+	}
+	// The longest type fits the queue, the widest passes the buildings beside the path.
+	for _, k := range airKinds {
+		if k.Length/25 > airQueueGap-.4 || k.Span/50 > airWingRoom-.05 {
+			t.Fatalf("%s (%v m long, %v m wide) does not fit", k.ID, k.Length, k.Span)
+		}
 	}
 }
 
@@ -442,6 +593,11 @@ func TestWriteAirTrafficGeometry(t *testing.T) {
 		}
 		return list
 	}
+	type route struct {
+		Name         string
+		Units, Speed float64
+		Track        [][]float64
+	}
 	type strip struct {
 		ID, Name                                  string
 		Taxiways                                  []int64
@@ -452,25 +608,31 @@ func TestWriteAirTrafficGeometry(t *testing.T) {
 		Touchdown, RolloutEnd, LiftOff            float64
 		DepartureLevel, LineUpSeconds             float64
 		VacateSeconds, FirstSlotSeconds           float64
-		ClimbSeconds, CruiseUnits, ApproachSecond float64
+		ClimbSeconds, CruiseSeconds               float64
+		ApproachSeconds                           float64
 		FlightSeconds, TouchdownSeparationSeconds float64
 		ClimbEnd, Fix, HoldCentre                 []float64
-		Cruise                                    [][]float64
+		Routes                                    []route
 	}
 	var strips []strip
 	for i, s := range a.strips {
 		l := a.legs[i]
+		var routes []route
+		for _, r := range l.routes {
+			routes = append(routes, route{r.name, round(r.cum[len(r.cum)-1]), round(r.speed), flat(r.cruise, 4)})
+		}
 		strips = append(strips, strip{s.airport.ID, s.airport.Name, airLoops[s.airport.ID],
 			[]float64{round(s.start.X), round(s.start.Z)}, []float64{round(s.dir.X), round(s.dir.Z)},
 			round(s.length), s.airport.Width, flat(s.path, 1), round(s.sExit), round(s.sClear), round(s.sHold), round(s.sEnd),
 			round(s.touch), round(s.rollEnd), round(s.launch), s.level, round(s.lineUp), round(s.vacate), round(s.slot),
-			round(l.climbTime), round(l.cruiseCum[len(l.cruiseCum)-1]), round(l.approachTime), round(l.flightTime), round(l.separation),
+			round(l.climbTime), round(l.cruiseTime), round(l.approachTime), round(l.flightTime), round(l.separation),
 			[]float64{round(l.climbEnd.X), round(l.climbEnd.Z)}, []float64{round(l.fix.X), round(l.fix.Z)},
-			[]float64{round(l.orbitCentre.X), round(l.orbitCentre.Z)}, flat(l.cruise, 8)})
+			[]float64{round(l.orbitCentre.X), round(l.orbitCentre.Z)}, routes})
 	}
 	raw, err := json.MarshalIndent(map[string]any{
 		"unitMetres": 25, "maxAircraft": MaxAircraft, "timetablePeriodSeconds": round(a.period), "timetableRounds": a.rounds,
 		"queueGap": airQueueGap, "holdLateral": airHoldLateral, "holdRadius": airHoldRadius, "strips": strips,
+		"mapOutline": flat(a.clip, 1), "mapMargin": airMapMargin, "aircraftTypes": airKinds,
 	}, "", "  ")
 	if err != nil {
 		t.Fatal(err)

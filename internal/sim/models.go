@@ -176,6 +176,10 @@ type AircraftView struct {
 	Destination string    `json:"destination"`
 	Speed       float64   `json:"speed"`
 	Gear        bool      `json:"gear"`
+	// Type is the aircraft type of the fleet (airKinds), Route the name of the route it is cleared for
+	// or flying. The single legacy shuttle has neither.
+	Type  string `json:"type,omitempty"`
+	Route string `json:"route,omitempty"`
 }
 type CitySnapshot struct {
 	Sequence         int64           `json:"sequence"`

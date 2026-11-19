@@ -3,6 +3,7 @@ package sim
 import (
 	"fmt"
 	"math"
+	"math/rand/v2"
 	"sort"
 )
 
@@ -27,13 +28,18 @@ import (
 //     be exact.
 //   - With more aircraft than fit one round of flights, departures leave in the slots of a timetable
 //     (timetable): otherwise the two runways fall out of step.
-//   - The two directions cruise at different levels (airLevels), because their tracks cross west of
-//     Norrköpings flygplats. Each flight is a turn, a straight and a turn onto the approach.
+//   - The two directions cruise at different levels (airLevels), because their tracks cross. Each
+//     flight takes one of several routes (airVias), drawn at random when it is cleared; every route lies
+//     inside the mapped area, and a longer one is flown faster, so that all flights between the airports
+//     take the same time and the rules above need not know the route.
+//   - Each aircraft is of a type drawn at random when it appears (airKinds).
 //
 // Speeds, times, distances and levels below are ESTIMATES chosen for a plausible picture in the 1:25 scene
 // (1 unit = 25 m); none is a measured procedure of either airport.
 type AirTraffic struct {
 	terrain   *TerrainService
+	rng       *rand.Rand
+	clip      []Vec3 // outline of the mapped area
 	strips    [2]*airStrip
 	period    float64 // of the timetable, see timetable()
 	rounds    int     // flights that fit one round trip of the timetable
@@ -50,7 +56,9 @@ const MaxAircraft = 6
 const (
 	airTaxiSpeed      = .4   // on taxiways: 10 m/s
 	airBacktrackSpeed = .7   // back along the runway after landing: 17.5 m/s
-	airQueueGap       = 1.6  // nose to nose in the queue: 40 m (the model is 23 m wide)
+	airQueueGap       = 2.4  // nose to nose in the queue: 60 m (the longest type is 44.5 m)
+	airWingRoom       = .8   // room kept between the path and a building beside it: 20 m (widest half span 18 m)
+	airMapMargin      = 2.0  // every flight stays this far inside the mapped area: 50 m
 	airHoldLateral    = 2.0  // hold line and "runway vacated": 50 m from the centre line
 	airPivotRate      = .35  // turning on the spot, rad/s (20°/s)
 	airTurnRate       = 1.2  // largest heading change while rolling, rad/s
@@ -64,7 +72,9 @@ const (
 	airApproachSpeed  = 2.5  // horizontal, 62.5 m/s
 	airTouchdown      = .12  // touchdown point as a share of the runway (as the single shuttle)
 	airRolloutTime    = 20.0 // from touchdown to walking pace, s
-	airCruiseSpeed    = 2.55 // 64 m/s; at this speed four flights fit one round of the timetable
+	airCruiseSpeed    = 2.55 // 64 m/s on the direct route; at this speed four flights fit one round of the timetable
+	airSlowest        = 2.3  // no route is flown slower than this, 57.5 m/s,
+	airFastest        = 3.3  // or faster than this, 82.5 m/s
 	airTurnRadius     = 20.0 // turns of the cruise, 500 m
 	airApproachLevel  = 6.0  // level at the approach fix, 150 m: the cruise ends with a descent to it
 	airHoldRadius     = 24.0 // holding circle, 600 m
@@ -72,6 +82,85 @@ const (
 	airMargin         = 8.0  // slack in the predictions, s
 	airSlotWindow     = 5.0  // how late in its slot a departure may still be cleared, s
 )
+
+// airKind is a type of aircraft. Length and span in metres are the manufacturers' published figures; the
+// interface draws the model. Which types are in the list is a choice, see docs/air-routes in the UI
+// repository: a 737 MAX 8 and an A321neo have flown charters from Norrköping, the A320neo was asked for,
+// and "TP" is the unnamed turboprop of the earlier versions.
+type airKind struct {
+	ID           string
+	Length, Span float64
+}
+
+var airKinds = []airKind{
+	{"TP", 19, 23},
+	{"A20N", 37.57, 35.80},
+	{"A21N", 44.51, 35.80},
+	{"B38M", 39.52, 35.92},
+}
+
+// airVia is a route for departures from an airport: its name (shown in the interface) and the points
+// it passes between the climb and the approach fix of the other airport, in scene coordinates (x, z).
+// ESTIMATES: no published procedure is behind them.
+type airVia struct {
+	name string
+	via  [][2]float64
+}
+
+var airVias = map[string][]airVia{
+	"ESSP": {
+		{"över staden", nil},
+		{"norr om staden", [][2]float64{{-20, -150}, {-150, -25}}},
+		{"söder om staden", [][2]float64{{0, 110}, {-170, 40}}},
+	},
+	"F13": {
+		{"över staden", nil},
+		{"norr om staden", [][2]float64{{-70, -150}, {0, -40}}},
+		{"söder om staden", [][2]float64{{-110, 20}}},
+	},
+}
+
+// airObstacles are the points of mapped buildings nearest the ground path where a wide wing would not
+// pass (scene x, z; OpenStreetMap ways 104336425 and 104336441 at Bråvalla). The path bends away from
+// them until airWingRoom is left, by at most a third of a unit (8 m) off the mapped centre line.
+var airObstacles = map[string][][2]float64{"F13": {{-223.184, -63.997}, {-226.987, -63.655}}}
+
+// keepClear bends a path away from obstacles: within 2.5 units of one, points move straight away from
+// it, most where the path is nearest, so that `room` is left there.
+func keepClear(path []Vec3, obstacles [][2]float64, room float64) []Vec3 {
+	if len(obstacles) == 0 {
+		return path
+	}
+	dense := []Vec3{path[0]}
+	for i := 1; i < len(path); i++ {
+		steps := int(math.Ceil(path[i].Sub(path[i-1]).Length() / .2))
+		for k := 1; k <= steps; k++ {
+			dense = append(dense, path[i-1].Add(path[i].Sub(path[i-1]).Mul(float64(k)/float64(steps))))
+		}
+	}
+	const reach = 2.5
+	weight := func(d float64) float64 {
+		w := clamp(1-d/reach, 0, 1)
+		return w * w * (3 - 2*w)
+	}
+	for _, o := range obstacles {
+		at := Vec3{o[0], 0, o[1]}
+		nearest := math.Inf(1)
+		for _, p := range dense {
+			nearest = math.Min(nearest, p.Sub(at).Length())
+		}
+		if nearest >= room || nearest < 1e-6 {
+			continue
+		}
+		push := (room - nearest) / weight(nearest)
+		for i, p := range dense {
+			if d := p.Sub(at).Length(); d < reach && d > 1e-6 {
+				dense[i] = p.Add(p.Sub(at).Mul(push * weight(d) / d))
+			}
+		}
+	}
+	return dense
+}
 
 // airLoops names the taxiways that make up the loop at each airport, in the order they are driven
 // (OpenStreetMap way ids, © OpenStreetMap contributors). The first leaves the runway; each next one starts
@@ -183,9 +272,9 @@ type airLeg struct {
 	launch         Vec3 // where the roll ends, on the ground
 	climbTime      float64
 	climbEnd       Vec3
-	cruise         []Vec3
-	cruiseCum      []float64
-	fix            Vec3 // end of the cruise, start of the approach
+	routes         []*airRoute
+	cruiseTime     float64 // the same on every route
+	fix            Vec3    // end of the cruise, start of the approach
 	orbitCentre    Vec3
 	approachTime   float64
 	touch, rollEnd Vec3
@@ -193,8 +282,18 @@ type airLeg struct {
 	separation     float64 // least time between two touchdowns at the destination
 }
 
+// airRoute is one way to fly a leg: from the end of the climb to the approach fix.
+type airRoute struct {
+	name   string
+	cruise []Vec3
+	cum    []float64
+	speed  float64 // length / the leg's cruise time
+}
+
 type aircraft struct {
 	id      string
+	kind    int // index in airKinds
+	route   int // index in the leg's routes, drawn when it is cleared
 	strip   int // on the ground: where it is; in the air: where it took off
 	state   int
 	s       float64 // ground: distance along the strip's path
@@ -297,7 +396,7 @@ func (a *AirTraffic) strip(network *TransportNetwork, airport *Airport) (*airStr
 		loop = loop[:len(loop)-1]
 	}
 	path := append([]Vec3{s.at(s.rollEnd), s.at(exitAlong)}, loop[1:]...)
-	s.path = roundCorners(append(path, start), .8)
+	s.path = keepClear(roundCorners(append(path, start), .8), airObstacles[airport.ID], airWingRoom)
 	s.cum = cumulative(s.path)
 	s.sExit, s.sEnd = s.rollEnd-exitAlong, s.cum[len(s.cum)-1]
 	s.sClear, s.sHold = s.sExit, s.sEnd
@@ -391,7 +490,24 @@ func turnStraightTurn(from, out, to, in Vec3, radius float64) []Vec3 {
 	return best
 }
 
-func (a *AirTraffic) leg(from, to *airStrip) *airLeg {
+// insideMap reports whether a point is inside the mapped area, by at least the margin.
+func (a *AirTraffic) insideMap(p Vec3, margin float64) bool {
+	in := false
+	for i, j := 0, len(a.clip)-1; i < len(a.clip); j, i = i, i+1 {
+		u, v := a.clip[i], a.clip[j]
+		if (u.Z > p.Z) != (v.Z > p.Z) && p.X < (v.X-u.X)*(p.Z-u.Z)/(v.Z-u.Z)+u.X {
+			in = !in
+		}
+		edge := v.Sub(u)
+		share := clamp(flat(p).Sub(u).Dot(edge)/math.Max(edge.Dot(edge), 1e-12), 0, 1)
+		if flat(p).Sub(u.Add(edge.Mul(share))).Length() < margin {
+			return false
+		}
+	}
+	return in
+}
+
+func (a *AirTraffic) leg(from, to *airStrip) (*airLeg, error) {
 	l := &airLeg{from: from, to: to}
 	l.launch = a.ground(from.at(from.launch))
 	l.touch, l.rollEnd = a.ground(to.at(to.touch)), a.ground(to.at(to.rollEnd))
@@ -406,27 +522,96 @@ func (a *AirTraffic) leg(from, to *airStrip) *airLeg {
 	l.fix.Y = from.level
 	// Right-hand circle through the fix: X is east and Z south, so the right of (x, z) is (-z, x).
 	l.orbitCentre = l.fix.Add(Vec3{-to.dir.Z, 0, to.dir.X}.Mul(airHoldRadius))
-	l.cruise = turnStraightTurn(l.climbEnd, from.dir, l.fix, to.dir, airTurnRadius)
-	samples := len(l.cruise) - 1
-	// The descent to the fix, at the approach's sink rate, over the last part of the cruise.
-	level := cumulative(l.cruise)
-	descent := (from.level - fixLevel) / airSinkRate * airCruiseSpeed
-	for i := range l.cruise {
-		if left := level[samples] - level[i]; left < descent {
-			share := left / descent
-			l.cruise[i].Y = fixLevel + (from.level-fixLevel)*share*share*(3-2*share)
+	// Every route first, level: through its points, each passed heading from the point before it to the
+	// one after.
+	for _, v := range airVias[from.airport.ID] {
+		points := []Vec3{l.climbEnd}
+		for _, p := range v.via {
+			points = append(points, Vec3{p[0], from.level, p[1]})
+		}
+		points = append(points, l.fix)
+		r := &airRoute{name: v.name}
+		heading := from.dir
+		for i := 1; i < len(points); i++ {
+			next := to.dir
+			if i < len(points)-1 {
+				next = flat(points[i+1].Sub(points[i-1])).Normalized()
+			}
+			part := turnStraightTurn(points[i-1], heading, points[i], next, airTurnRadius)
+			if len(part) < 2 {
+				return nil, fmt.Errorf("route %q from %s cannot be flown", v.name, from.airport.ID)
+			}
+			if i > 1 {
+				part = part[1:]
+			}
+			r.cruise, heading = append(r.cruise, part...), next
+		}
+		r.cum = cumulative(r.cruise)
+		l.routes = append(l.routes, r)
+	}
+	if len(l.routes) == 0 {
+		return nil, fmt.Errorf("no route from %s", from.airport.ID)
+	}
+	// One cruise time for all of them: that of the first, direct route at the cruise speed, or more if
+	// the longest route would otherwise have to be flown faster than airFastest.
+	l.cruiseTime = l.routes[0].cum[len(l.routes[0].cum)-1] / airCruiseSpeed
+	for _, r := range l.routes {
+		l.cruiseTime = math.Max(l.cruiseTime, r.cum[len(r.cum)-1]/airFastest)
+	}
+	for _, r := range l.routes {
+		samples := len(r.cruise) - 1
+		level := r.cum
+		// The descent to the fix, at the approach's sink rate, over the last part of the cruise.
+		descent := (from.level - fixLevel) / airSinkRate * level[samples] / l.cruiseTime
+		for i := range r.cruise {
+			if left := level[samples] - level[i]; left < descent {
+				share := left / descent
+				r.cruise[i].Y = fixLevel + (from.level-fixLevel)*share*share*(3-2*share)
+			}
+		}
+		r.cum = cumulative(r.cruise)
+		r.speed = r.cum[samples] / l.cruiseTime
+		if r.speed < airSlowest || r.speed > airFastest*1.01 {
+			return nil, fmt.Errorf("route %q from %s would be flown at %.2f units/s", r.name, from.airport.ID, r.speed)
+		}
+		for _, p := range r.cruise {
+			if !a.insideMap(p, airMapMargin) {
+				return nil, fmt.Errorf("route %q from %s leaves the map at %.0f, %.0f", r.name, from.airport.ID, p.X, p.Z)
+			}
 		}
 	}
 	l.fix.Y, l.orbitCentre.Y = fixLevel, fixLevel
-	l.cruiseCum = cumulative(l.cruise)
-	l.flightTime = airRollTime + l.climbTime + l.cruiseCum[samples]/airCruiseSpeed + l.approachTime
+	for i := 0; i < 64; i++ {
+		angle := 2 * math.Pi * float64(i) / 64
+		if p := l.orbitCentre.Add(Vec3{math.Cos(angle), 0, math.Sin(angle)}.Mul(airHoldRadius)); !a.insideMap(p, airMapMargin) {
+			return nil, fmt.Errorf("the holding circle for %s leaves the map", to.airport.ID)
+		}
+	}
+	if !a.insideMap(l.climbEnd, airMapMargin) {
+		return nil, fmt.Errorf("the climb from %s leaves the map", from.airport.ID)
+	}
+	l.flightTime = airRollTime + l.climbTime + l.cruiseTime + l.approachTime
 	l.separation = to.vacate + to.lineUp + airRollTime + airFinalGap + airMargin
-	return l
+	return l, nil
 }
 
 // NewAirTraffic places count aircraft in the two queues, alternately, the first at the first airport.
-func NewAirTraffic(network *TransportNetwork, terrain *TerrainService, count int) (*AirTraffic, error) {
-	a := &AirTraffic{terrain: terrain}
+// The seed decides the aircraft types and the route of every flight.
+func NewAirTraffic(network *TransportNetwork, terrain *TerrainService, count int, seed uint64) (*AirTraffic, error) {
+	a := &AirTraffic{terrain: terrain, rng: rand.New(rand.NewPCG(seed, 0x9e3779b97f4a7c15))}
+	for _, p := range network.Meta.Clip {
+		a.clip = append(a.clip, Vec3{p[0], 0, p[1]})
+	}
+	if len(a.clip) < 4 {
+		return nil, fmt.Errorf("the network does not say where the map ends")
+	}
+	longest := 0.0
+	for _, k := range airKinds {
+		longest = math.Max(longest, k.Length)
+	}
+	if longest/25+.4 > airQueueGap {
+		return nil, fmt.Errorf("the queue is too tight for an aircraft of %.1f m", longest)
+	}
 	if len(network.Airports) != 2 {
 		return nil, fmt.Errorf("air traffic needs two airports, found %d", len(network.Airports))
 	}
@@ -437,15 +622,24 @@ func NewAirTraffic(network *TransportNetwork, terrain *TerrainService, count int
 		}
 		a.strips[i] = strip
 	}
-	a.legs[0], a.legs[1] = a.leg(a.strips[0], a.strips[1]), a.leg(a.strips[1], a.strips[0])
+	for i := range a.legs {
+		leg, err := a.leg(a.strips[i], a.strips[1-i])
+		if err != nil {
+			return nil, err
+		}
+		a.legs[i] = leg
+	}
 	a.timetable()
 	a.SetCount(count)
 	return a, nil
 }
 
-// NewBundledAirTraffic uses the bundled network and terrain, which are known to be valid.
-func NewBundledAirTraffic(count int) *AirTraffic {
-	a, err := NewAirTraffic(BundledNetwork(), BundledTerrain(), count)
+// NewBundledAirTraffic uses the bundled network and terrain, which are known to be valid, and seed 1.
+func NewBundledAirTraffic(count int) *AirTraffic { return NewSeededAirTraffic(count, 1) }
+
+// NewSeededAirTraffic is NewBundledAirTraffic with a seed of its own.
+func NewSeededAirTraffic(count int, seed uint64) *AirTraffic {
+	a, err := NewAirTraffic(BundledNetwork(), BundledTerrain(), count, seed)
 	if err != nil {
 		panic(err)
 	}
@@ -517,7 +711,8 @@ func (a *AirTraffic) spawn() {
 		if place < s.sClear+airQueueGap {
 			return // an arrival is still on its way round; try again next tick
 		}
-		p := &aircraft{id: fmt.Sprintf("NK-%02d", len(a.planes)+1), strip: i, s: place, arrived: true, ready: a.clock + airFirstReady}
+		p := &aircraft{id: fmt.Sprintf("NK-%02d", len(a.planes)+1), kind: a.rng.IntN(len(airKinds)), strip: i, s: place,
+			arrived: true, ready: a.clock + airFirstReady}
 		pos, tangent := along(s.path, s.cum, place)
 		p.heading, p.last = math.Atan2(tangent.X, tangent.Z), a.ground(pos)
 		a.planes = append(a.planes, p)
@@ -568,6 +763,7 @@ func (a *AirTraffic) clear(p *aircraft) bool {
 			return false
 		}
 	}
+	p.route = a.rng.IntN(len(leg.routes))
 	here.runway, p.cleared, p.freeAt, p.slot = p, true, airborne+airMargin, &airSlot{p, touch}
 	there.inbound = append(there.inbound, p.slot)
 	return true
@@ -659,8 +855,8 @@ func (a *AirTraffic) fly(p *aircraft, dt float64) bool {
 		case p.state == airClimb && p.t >= leg.climbTime:
 			p.t -= leg.climbTime
 			p.state = airCruise
-		case p.state == airCruise && p.t >= leg.cruiseCum[len(leg.cruiseCum)-1]/airCruiseSpeed:
-			p.t -= leg.cruiseCum[len(leg.cruiseCum)-1] / airCruiseSpeed
+		case p.state == airCruise && p.t >= leg.cruiseTime:
+			p.t -= leg.cruiseTime
 			if len(leg.to.holding) == 0 && a.mayApproach(p) {
 				p.state = airApproach
 			} else {
@@ -704,7 +900,8 @@ func (a *AirTraffic) position(p *aircraft, t float64) Vec3 {
 		at.Y = leg.launch.Y + (leg.from.level-leg.launch.Y)*share*share*(3-2*share)
 		return at
 	case airCruise:
-		at, _ := along(leg.cruise, leg.cruiseCum, t*airCruiseSpeed)
+		route := leg.routes[p.route]
+		at, _ := along(route.cruise, route.cum, t*route.speed)
 		return at
 	case airOrbit:
 		angle := t * airCruiseSpeed / airHoldRadius
@@ -761,7 +958,12 @@ func (a *AirTraffic) describe(p *aircraft, dt float64) {
 	if p.state == airClimb || p.state == airCruise || p.state == airOrbit || p.state == airApproach {
 		bank = clamp(-angleBetween(previous, p.heading)/math.Max(dt, .001)*1.2, -.35, .35)
 	}
-	p.view = AircraftView{ID: p.id, Pos: pos.Array(), Heading: p.heading, Pitch: pitch, Bank: bank, Phase: phase,
+	route := ""
+	if p.cleared || p.state != airGround {
+		route = a.legs[p.strip].routes[p.route].name
+	}
+	p.view = AircraftView{ID: p.id, Type: airKinds[p.kind].ID, Route: route,
+		Pos: pos.Array(), Heading: p.heading, Pitch: pitch, Bank: bank, Phase: phase,
 		Origin: origin.airport.Name, Destination: destination.airport.Name,
 		Speed: pos.Sub(p.last).Length() / math.Max(dt, .001) * 25 * 3.6,
 		Gear:  p.state != airClimb && p.state != airCruise && p.state != airOrbit}
