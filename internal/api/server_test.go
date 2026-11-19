@@ -446,3 +446,28 @@ func TestTheStreamIsCompressedForClientsThatAcceptIt(t *testing.T) {
 		t.Fatalf("Go client: uncompressed %v, first line %q", response.Uncompressed, line)
 	}
 }
+
+func TestSimulatorSettingsChooseTheNumberOfAircraft(t *testing.T) {
+	server := start(t)
+	status, _ := post(t, server, "/api/simulator/settings", jsonBody(`{"compact":1,"estate":1,"trucks":1,"flights":true,"planes":5,"timeScale":1}`))
+	expectStatus(t, "five aircraft", 200, status)
+	_, world := get(t, server, "/api/simulator/world")
+	aircraft := world["aircraft"].([]any)
+	if len(aircraft) != 5 || world["settings"].(map[string]any)["planes"] != 5.0 || aircraft[4].(map[string]any)["id"] != "NK-05" {
+		t.Fatalf("after asking for five: %d aircraft, settings %v", len(aircraft), world["settings"])
+	}
+	status, result := post(t, server, "/api/simulator/settings", jsonBody(`{"flights":true,"planes":7,"timeScale":1}`))
+	expectStatus(t, "seven aircraft", 400, status)
+	if result["error"] != "Välj högst 6 flygplan." {
+		t.Fatalf("seven aircraft: %v", result)
+	}
+	status, _ = post(t, server, "/api/simulator/settings", jsonBody(`{"flights":true,"planes":2.5,"timeScale":1}`))
+	expectStatus(t, "half an aircraft", 400, status)
+	// A client from before the fleet does not send the number, and keeps its single shuttle.
+	status, _ = post(t, server, "/api/simulator/settings", jsonBody(`{"compact":1,"estate":1,"trucks":1,"flights":true,"timeScale":1}`))
+	expectStatus(t, "no number", 200, status)
+	_, world = get(t, server, "/api/simulator/world")
+	if _, named := world["settings"].(map[string]any)["planes"]; named || len(world["aircraft"].([]any)) != 1 {
+		t.Fatalf("without a number: %d aircraft, settings %v", len(world["aircraft"].([]any)), world["settings"])
+	}
+}

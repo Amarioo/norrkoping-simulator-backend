@@ -1,6 +1,6 @@
 # Norrköping Simulator — Go
 
-A local city simulation for the Norrköping Simulator UI in `../norrkoping-simulator-ui`. Cars use a directed OpenStreetMap road graph. A fictional regional aircraft travels between Norrköpings flygplats (ESSP/Kungsängen) and the former Bråvalla F13 airfield.
+A local city simulation for the Norrköping Simulator UI in `../norrkoping-simulator-ui`. Cars use a directed OpenStreetMap road graph. Up to six fictional regional aircraft shuttle between Norrköpings flygplats (ESSP/Kungsängen) and the former Bråvalla F13 airfield.
 
 ## Start
 
@@ -43,7 +43,7 @@ priority queue order and Java's number formatting. Three Kotlin test classes wer
 ```text
 POST /api/simulator/* → guard / strict decoding / validation
                      → city command → CityService mutex
-                     → RoadTraffic + RailTraffic + RegionalFlight write models
+                     → RoadTraffic + RailTraffic + AirTraffic (or RegionalFlight) write models
                      → immutable CitySnapshot → State
 GET world / SSE city ← read projection
 ```
@@ -61,7 +61,7 @@ All POST requests require `Content-Type: application/json`.
 | GET `/health` | `{"status":"ok"}` |
 | GET `/api/simulator/world` | Current `CitySnapshot` |
 | GET `/api/simulator/stream` | SSE event `city`, full snapshot, about 10 Hz |
-| POST `/api/simulator/settings` | `{"compact":100,"estate":60,"trucks":20,"buses":12,"trams":8,"trains":2,"flights":true,"timeScale":3}` |
+| POST `/api/simulator/settings` | `{"compact":100,"estate":60,"trucks":20,"buses":12,"trams":8,"trains":2,"flights":true,"planes":3,"timeScale":3}`; `planes` is 1–6, and leaving it out keeps the single legacy shuttle |
 | POST `/api/simulator/pause` | `{"paused":true}` |
 | POST `/api/simulator/reset` | `{}`; preserve selected settings, reset movement/time |
 
@@ -85,9 +85,37 @@ RailTraffic maintains distance on each route, accelerates, brakes and dwells. Ea
 
 The map importer retains tunnel-tagged road underpasses, including Ståthögavägen. Shared signal orientation prevents disagreement between the visible lamps and simulation. Route lookahead cannot loop behind a vehicle; junction leases expire and directed dead ends are pruned before route selection.
 
-## Regional flight
+## Air traffic
 
-One procedural twin-engine turboprop shuttles ESSP ↔ F13. Runway endpoints/headings and taxiway lines come from the same map as the renderer. The flight builds connected taxi routes, then cycles through `PARKED`, `TAXI_OUT`, `TAKEOFF`, `CLIMB`, `CRUISE`, `APPROACH`, `LANDING`, `TAXI_IN`. Ground movement, climb/descent, bank, propellers and landing gear are visualised by the UI.
+`internal/sim/airtraffic.go` flies one to six procedural twin-engine turboprops (NK-01 … NK-06) ESSP ↔ F13;
+a new city starts with three. Each airport has one runway, used in one direction, and a one-way loop of mapped
+taxiways at its take-off end (OpenStreetMap ways 101516378 at ESSP; 104336417 and 104336403 at F13, chosen
+because they keep clear of the mapped buildings). A landed aircraft turns on the runway, taxis back to the
+loop, goes round it and queues behind the hold line; the first in the queue lines up and takes off.
+
+- **Phases:** `PARKED`, `QUEUE`, `TAXI_OUT`, `TAKEOFF`, `CLIMB`, `CRUISE`, `HOLDING`, `APPROACH`, `LANDING`,
+  `TAXI_IN`. `QUEUE` is ready and waiting for the runway; `HOLDING` is a circle at the approach fix, flown
+  only if the runway is not free in time, which the clearance rules prevent in normal running.
+- **Runway:** one user at a time, and free 20 s before every touchdown. A departure is cleared only if it is
+  airborne in time for the next arrival, and if its own touchdown at the other airport leaves room there
+  for the arrival before it to vacate and one departure to leave.
+- **Timetable:** with five or six aircraft, departures leave in slots, one per 176 s from each airport,
+  placed so that the two runways stay in step. Without it six aircraft completed fewer flights than five.
+  Up to four aircraft leave as soon as they may.
+- **Levels:** flights from ESSP cruise at 12 units (300 m), flights from F13 at 8 (200 m): the two tracks
+  cross west of ESSP. A flight is a turn, a straight and a turn onto a 5° approach from 6 units (150 m).
+- **Changing the number:** the highest numbers leave at once; new aircraft appear at the back of the shorter
+  queue.
+
+Every speed, time, distance and level is an estimate chosen for the 1:25 scene; the constants at the top of
+the file say what each stands for. `go test` runs every fleet size for six simulated hours and checks
+separation, runway use and that nobody waits for ever.
+
+### The single legacy shuttle
+
+A settings command without `planes` (older clients, and the Kotlin reference traces) flies
+`internal/sim/flight.go` as before: one aircraft, NK-01, through `PARKED`, `TAXI_OUT`, `TAKEOFF`, `CLIMB`,
+`CRUISE`, `APPROACH`, `LANDING`, `TAXI_IN`. Its trajectory is fixed by `testdata/golden.json`.
 
 F13 service is fictional. Flight paths, speeds and phases are simplified geometric animation, not actual aviation procedures or a flight-dynamics model. No live aircraft/traffic feed is used.
 
@@ -116,7 +144,7 @@ go test ./...    # about 5 seconds
 go vet ./...
 ```
 
-Tests cover the Kotlin reference traces, traffic counts/restrictions, red-light stopping and green release, continuous flight through all phases and both airports, pause, invalid commands without mutation, HTTP validation and origin checks. Legacy drone tests remain. Browser/SSE end-to-end tests are in the UI repo.
+Tests cover the Kotlin reference traces, traffic counts/restrictions, red-light stopping and green release, continuous flight through all phases and both airports, the fleet of one to six aircraft (separation, one runway user at a time, no deadlock, a changed fleet size, holding), pause, invalid commands without mutation, HTTP validation and origin checks. Legacy drone tests remain. Browser/SSE end-to-end tests are in the UI repo.
 
 Every `/api/simulator/*` route takes an optional `?session=<id>` (8–64 characters of `A–Z a–z 0–9 _ -`): the request then uses a city of that visitor's own, created on first use and removed when idle. Without the parameter everybody shares one city.
 

@@ -135,6 +135,9 @@ type TrafficSettings struct {
 	Buses     int     `json:"buses"`
 	Trams     int     `json:"trams"`
 	Trains    int     `json:"trains"`
+	// Planes is the number of aircraft, 1 to MaxAircraft, when Flights is on. 0 (left out by older
+	// clients) keeps the single legacy shuttle NK-01, whose trajectory the Kotlin reference fixes.
+	Planes int `json:"planes,omitempty"`
 }
 
 // DefaultTrafficSettings are the values a settings request starts from.

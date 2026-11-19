@@ -26,6 +26,7 @@ type CityService struct {
 	mu       sync.Mutex
 	traffic  *RoadTraffic
 	flight   *RegionalFlight
+	air      *AirTraffic
 	rail     *RailTraffic
 	settings TrafficSettings
 	paused   bool
@@ -39,9 +40,9 @@ type CityService struct {
 
 // NewCityService starts with the default traffic on the bundled map.
 func NewCityService() *CityService {
-	s := &CityService{traffic: NewBundledRoadTraffic(), flight: NewBundledRegionalFlight(), rail: NewBundledRailTraffic(),
+	s := &CityService{traffic: NewBundledRoadTraffic(), flight: NewBundledRegionalFlight(), air: NewBundledAirTraffic(0), rail: NewBundledRailTraffic(),
 		settings: DefaultTrafficSettings(), revision: BundledTerrain().Data.Revision, World: newState[CitySnapshot](nil)}
-	s.settings.Buses, s.settings.Trams, s.settings.Trains = 12, 8, 2
+	s.settings.Buses, s.settings.Trams, s.settings.Trains, s.settings.Planes = 12, 8, 2, 3
 	if err := s.configure(s.settings); err != nil {
 		panic(err)
 	}
@@ -54,7 +55,19 @@ func (s *CityService) configure(settings TrafficSettings) error {
 	if err := s.traffic.Configure(settings); err != nil {
 		return err
 	}
-	return s.rail.Configure(settings)
+	if err := s.rail.Configure(settings); err != nil {
+		return err
+	}
+	s.air.SetCount(settings.aircraft())
+	return nil
+}
+
+// aircraft is the number flown by AirTraffic; the legacy shuttle is not among them.
+func (v TrafficSettings) aircraft() int {
+	if !v.Flights {
+		return 0
+	}
+	return v.Planes
 }
 
 // log puts the newest event first and keeps the last 25.
@@ -71,12 +84,14 @@ func (s *CityService) log(kind, message string) {
 
 func (s *CityService) publish() {
 	s.sequence++
-	aircraft := []AircraftView{}
-	if s.settings.Flights {
+	aircraft, completed := []AircraftView{}, s.flight.Completed
+	if s.settings.Planes > 0 {
+		aircraft, completed = s.air.Views(), s.air.Completed
+	} else if s.settings.Flights {
 		aircraft = append(aircraft, s.flight.View())
 	}
 	s.World.set(&CitySnapshot{s.sequence, s.time, s.paused, s.settings, append(s.traffic.Views(), s.rail.Views()...), aircraft,
-		s.flight.Completed, s.events, s.revision})
+		completed, s.events, s.revision})
 }
 
 // Execute applies a command. A rejected command changes nothing and publishes nothing.
@@ -90,6 +105,9 @@ func (s *CityService) Execute(command CityCommand) error {
 			v.Buses < 0 || v.Buses > 80 || v.Trams < 0 || v.Trams > 40 || v.Trains < 0 || v.Trains > 12 ||
 			v.Compact+v.Estate+v.Trucks+v.Buses > 1000 {
 			return invalid("Välj högst 1 000 vägfordon: 600 av varje biltyp, 150 lastbilar och 80 bussar. Högst 40 spårvagnar och 12 tåg.")
+		}
+		if v.Planes < 0 || v.Planes > MaxAircraft {
+			return invalid(fmt.Sprintf("Välj högst %d flygplan.", MaxAircraft))
 		}
 		if !isFinite(v.TimeScale) || v.TimeScale < 1.0 || v.TimeScale > 20.0 {
 			return invalid("Tidsfaktor måste vara 1–20.")
@@ -111,6 +129,7 @@ func (s *CityService) Execute(command CityCommand) error {
 		}
 	case ResetCity:
 		s.traffic, s.flight, s.rail = NewBundledRoadTraffic(), NewBundledRegionalFlight(), NewBundledRailTraffic()
+		s.air = NewBundledAirTraffic(0)
 		if err := s.configure(s.settings); err != nil {
 			return err
 		}
@@ -133,7 +152,11 @@ func (s *CityService) Step(dt float64) {
 			s.time += tick
 			s.traffic.Tick(tick, s.time)
 			s.rail.Tick(tick)
-			if s.settings.Flights && s.flight.Tick(tick) {
+			if s.settings.aircraft() > 0 {
+				for _, landed := range s.air.Tick(tick) {
+					s.log("landing", landed.Destination+": "+landed.ID+" har landat.")
+				}
+			} else if s.settings.Flights && s.flight.Tick(tick) {
 				s.log("landing", s.flight.View().Destination+": NK-01 har landat.")
 			}
 			remaining -= tick

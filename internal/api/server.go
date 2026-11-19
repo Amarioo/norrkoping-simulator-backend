@@ -272,15 +272,15 @@ func (s *Server) Handler() http.Handler {
 	})
 	api.Handle("POST /api/simulator/settings", command("Trafiken uppdaterad.", func(r *http.Request) error {
 		v := sim.DefaultTrafficSettings()
-		var compact, estate, trucks, buses, trams, trains int32 = int32(v.Compact), int32(v.Estate), int32(v.Trucks), 0, 0, 0
+		var compact, estate, trucks, buses, trams, trains, planes int32 = int32(v.Compact), int32(v.Estate), int32(v.Trucks), 0, 0, 0, 0
 		if err := decode(r, map[string]field{
 			"compact": {target: &compact}, "estate": {target: &estate}, "trucks": {target: &trucks},
 			"flights": {target: &v.Flights}, "timeScale": {target: &v.TimeScale},
-			"buses": {target: &buses}, "trams": {target: &trams}, "trains": {target: &trains},
+			"buses": {target: &buses}, "trams": {target: &trams}, "trains": {target: &trains}, "planes": {target: &planes},
 		}); err != nil {
 			return err
 		}
-		v.Compact, v.Estate, v.Trucks, v.Buses, v.Trams, v.Trains = int(compact), int(estate), int(trucks), int(buses), int(trams), int(trains)
+		v.Compact, v.Estate, v.Trucks, v.Buses, v.Trams, v.Trains, v.Planes = int(compact), int(estate), int(trucks), int(buses), int(trams), int(trains), int(planes)
 		city, err := s.cityFor(r)
 		if err != nil {
 			return err

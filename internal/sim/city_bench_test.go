@@ -25,7 +25,7 @@ func benchmarkCityStep(b *testing.B, settings TrafficSettings) {
 
 func startSettings() TrafficSettings {
 	v := DefaultTrafficSettings()
-	v.Buses, v.Trams, v.Trains = 12, 8, 2
+	v.Buses, v.Trams, v.Trains, v.Planes = 12, 8, 2, 3
 	return v
 }
 
